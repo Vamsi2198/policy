@@ -1,0 +1,129 @@
+{
+  "metadata": {
+    "created_at": "2025-11-22T12:54:27.018427",
+    "last_updated": "2026-04-10T16:49:36.523410",
+    "version": "1.0"
+  },
+  "policy_statistics": {
+    "PII_MASKING_POLICY": {
+      "total_executions": 169,
+      "successful_executions": 166,
+      "failed_executions": 3,
+      "total_rows_affected": 162298,
+      "tables_affected": {
+        "CUSTOMERS": {
+          "execution_count": 154,
+          "rows_affected": 3306,
+          "last_executed": "2026-04-10T16:49:36.523410"
+        },
+        "ORDERS": {
+          "execution_count": 2,
+          "rows_affected": 10397,
+          "last_executed": "2025-11-22T19:56:20.363687"
+        },
+        "EMPLOYEES": {
+          "execution_count": 11,
+          "rows_affected": 99845,
+          "last_executed": "2026-04-10T16:41:41.781660"
+        },
+        "TRANSACTIONS": {
+          "execution_count": 2,
+          "rows_affected": 48750,
+          "last_executed": "2025-11-22T19:56:20.400605"
+        }
+      },
+      "first_executed": "2025-11-22T12:54:27.021319",
+      "last_executed": "2026-04-10T16:49:36.523410"
+    },
+    "GDPR_COMPLIANCE_POLICY": {
+      "total_executions": 13,
+      "successful_executions": 11,
+      "failed_executions": 2,
+      "total_rows_affected": 224981,
+      "tables_affected": {
+        "TRANSACTIONS": {
+          "execution_count": 2,
+          "rows_affected": 11027,
+          "last_executed": "2025-11-22T12:54:27.087080"
+        },
+        "CUSTOMERS": {
+          "execution_count": 6,
+          "rows_affected": 121957,
+          "last_executed": "2025-11-22T19:56:20.390978"
+        },
+        "ORDERS": {
+          "execution_count": 4,
+          "rows_affected": 56770,
+          "last_executed": "2025-11-22T19:56:20.374034"
+        },
+        "EMPLOYEES": {
+          "execution_count": 1,
+          "rows_affected": 35227,
+          "last_executed": "2025-11-22T19:56:20.412354"
+        }
+      },
+      "first_executed": "2025-11-22T12:54:27.025597",
+      "last_executed": "2025-11-22T19:56:20.412354"
+    },
+    "FINANCIAL_DATA_POLICY": {
+      "total_executions": 23,
+      "successful_executions": 23,
+      "failed_executions": 0,
+      "total_rows_affected": 557117,
+      "tables_affected": {
+        "EMPLOYEES": {
+          "execution_count": 5,
+          "rows_affected": 142576,
+          "last_executed": "2025-11-22T19:56:20.430517"
+        },
+        "ORDERS": {
+          "execution_count": 5,
+          "rows_affected": 138401,
+          "last_executed": "2025-11-22T19:56:20.435609"
+        },
+        "CUSTOMERS": {
+          "execution_count": 11,
+          "rows_affected": 215935,
+          "last_executed": "2026-01-24T14:14:04.678411"
+        },
+        "TRANSACTIONS": {
+          "execution_count": 2,
+          "rows_affected": 60205,
+          "last_executed": "2025-11-22T19:56:20.422484"
+        }
+      },
+      "first_executed": "2025-11-22T12:54:27.034414",
+      "last_executed": "2026-01-24T14:14:04.678411"
+    },
+    "EMAIL_MASKING_POLICY": {
+      "total_executions": 31,
+      "successful_executions": 27,
+      "failed_executions": 4,
+      "total_rows_affected": 295257,
+      "tables_affected": {
+        "EMPLOYEES": {
+          "execution_count": 4,
+          "rows_affected": 48551,
+          "last_executed": "2025-11-22T12:55:22.021293"
+        },
+        "CUSTOMERS": {
+          "execution_count": 20,
+          "rows_affected": 111142,
+          "last_executed": "2026-01-24T13:59:29.773664"
+        },
+        "ORDERS": {
+          "execution_count": 4,
+          "rows_affected": 102118,
+          "last_executed": "2025-11-22T19:56:20.387850"
+        },
+        "TRANSACTIONS": {
+          "execution_count": 3,
+          "rows_affected": 33446,
+          "last_executed": "2025-11-22T12:55:22.035346"
+        }
+      },
+      "first_executed": "2025-11-22T12:54:27.044327",
+      "last_executed": "2026-01-24T13:59:29.772672"
+    }
+  }
+}

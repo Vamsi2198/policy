@@ -1,0 +1,119 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    SNOWFLAKE QUERY LOGGING - QUICK REFERENCE                 ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+📋 LOG FILE LOCATION
+────────────────────────────────────────────────────────────────────────────────
+  snowflake_queries.log   (created automatically in working directory)
+
+🔍 VIEW LOGS - BASIC COMMANDS
+────────────────────────────────────────────────────────────────────────────────
+  python src/view_snowflake_logs.py                    # View all with summary
+  python src/view_snowflake_logs.py --summary-only     # Summary stats only
+  python src/view_snowflake_logs.py --limit 10         # Last 10 queries
+
+🚨 TROUBLESHOOTING - FIND FAILURES
+────────────────────────────────────────────────────────────────────────────────
+  python src/view_snowflake_logs.py --status FAILED --errors
+  grep -A 10 "FAILED" snowflake_queries.log
+  tail -f snowflake_queries.log | grep -A 5 "FAILED"   # Real-time monitoring
+
+🔎 SEARCH BY QUERY TYPE
+────────────────────────────────────────────────────────────────────────────────
+  python src/view_snowflake_logs.py --type SELECT
+  python src/view_snowflake_logs.py --type "CREATE MASKING POLICY"
+  grep -A 5 "Query: ALTER TABLE" snowflake_queries.log
+
+⏱️  PERFORMANCE ANALYSIS
+────────────────────────────────────────────────────────────────────────────────
+  # View summary with execution times
+  python src/view_snowflake_logs.py --summary-only
+  
+  # Find slow queries (>1 second)
+  grep "Execution time" snowflake_queries.log | awk -F: '{if ($2+0>1.0) print}'
+  
+  # Sort by execution time
+  grep "Execution time" snowflake_queries.log | sort -t':' -k2 -n
+
+📊 LOG STATISTICS
+────────────────────────────────────────────────────────────────────────────────
+  # Total queries
+  grep -c "EXECUTING SNOWFLAKE QUERY" snowflake_queries.log
+  
+  # Success count
+  grep -c "SUCCESS" snowflake_queries.log
+  
+  # Failure count
+  grep -c "FAILED" snowflake_queries.log
+  
+  # Query types
+  grep "Query:" snowflake_queries.log | awk '{print $3}' | sort | uniq -c
+
+🧪 TEST LOGGING
+────────────────────────────────────────────────────────────────────────────────
+  python src/test_query_logging.py
+
+🔄 LOG MAINTENANCE
+────────────────────────────────────────────────────────────────────────────────
+  # Backup current log
+  cp snowflake_queries.log snowflake_queries_backup.log
+  
+  # Archive with date
+  mv snowflake_queries.log snowflake_queries_$(date +%Y%m%d).log
+  
+  # Keep last N lines
+  tail -n 1000 snowflake_queries.log > temp.log && mv temp.log snowflake_queries.log
+  
+  # Watch real-time
+  tail -f snowflake_queries.log
+
+📌 WHAT'S LOGGED
+────────────────────────────────────────────────────────────────────────────────
+  ✓ Full SQL query text
+  ✓ Execution timestamp
+  ✓ Execution time (ms precision)
+  ✓ Rows affected/returned
+  ✓ Snowflake Query ID
+  ✓ Success/failure status
+  ✓ Error messages (for failures)
+  ✓ Sample results (for SELECT)
+
+🎯 COMMON USE CASES
+────────────────────────────────────────────────────────────────────────────────
+  Debug failed query:
+    python src/view_snowflake_logs.py --status FAILED --errors --limit 1
+  
+  Find recent CREATE POLICY commands:
+    python src/view_snowflake_logs.py --type CREATE --limit 20
+  
+  Check last 5 queries:
+    python src/view_snowflake_logs.py --limit 5
+  
+  Export failures to file:
+    python src/view_snowflake_logs.py --status FAILED > failures.txt
+
+📖 DOCUMENTATION
+────────────────────────────────────────────────────────────────────────────────
+  SNOWFLAKE_LOGGING_README.md     # Complete user guide
+  SNOWFLAKE_LOGGING_SUMMARY.md    # Implementation details
+
+🔗 SNOWFLAKE CONSOLE LOOKUP
+────────────────────────────────────────────────────────────────────────────────
+  1. Find Query ID in log
+  2. In Snowflake UI: History tab
+  3. Search by Query ID or use SQL:
+     
+     SELECT * FROM TABLE(INFORMATION_SCHEMA.QUERY_HISTORY())
+     WHERE QUERY_ID = 'your-query-id-here';
+
+💡 PRO TIPS
+────────────────────────────────────────────────────────────────────────────────
+  • Use --limit to avoid overwhelming output
+  • Combine filters: --status FAILED --type CREATE
+  • Watch logs during testing: tail -f snowflake_queries.log
+  • Archive logs regularly to manage size
+  • Query IDs link to Snowflake console for deep investigation
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  For more information: cat SNOWFLAKE_LOGGING_README.md                       ║
+╚══════════════════════════════════════════════════════════════════════════════╝

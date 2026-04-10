@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atlan Actions - Policy Dashboard</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="stylesheet" href="policy.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        #root {
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Policy type definitions and interfaces (same as in TSX)
+        const mockPolicies = [
+            {
+                id: "1",
+                name: "PUBLIC_CUSTOMERS_EMAIL_mask_policy",
+                description: "Masks email addresses for non-admin users using partial visibility pattern",
+                status: "ACTIVE",
+                createdAt: "2025-10-24T14:30:00Z",
+                table: "PUBLIC.CUSTOMERS",
+                columns: ["EMAIL"],
+                piiTypes: ["EMAIL_ADDRESS"],
+                confidence: 0.95,
+                appliedBy: "AtlanActionsEngine",
+                lastModified: "2025-10-24T14:30:00Z"
+            },
+            {
+                id: "2",
+                name: "PUBLIC_CUSTOMERS_SSN_mask_policy",
+                description: "Masks SSN for all users except compliance team",
+                status: "ACTIVE",
+                createdAt: "2025-10-24T14:30:05Z",
+                table: "PUBLIC.CUSTOMERS",
+                columns: ["SSN"],
+                piiTypes: ["SSN"],
+                confidence: 0.98,
+                appliedBy: "AtlanActionsEngine",
+                lastModified: "2025-10-24T14:30:05Z"
+            },
+            {
+                id: "3",
+                name: "PUBLIC_CUSTOMERS_PHONE_mask_policy",
+                description: "Masks phone numbers with partial visibility for customer service",
+                status: "ACTIVE",
+                createdAt: "2025-10-24T14:30:10Z",
+                table: "PUBLIC.CUSTOMERS",
+                columns: ["PHONE"],
+                piiTypes: ["PHONE_NUMBER"],
+                confidence: 0.92,
+                appliedBy: "AtlanActionsEngine",
+                lastModified: "2025-10-24T14:30:10Z"
+            },
+            {
+                id: "4",
+                name: "PUBLIC_EMPLOYEES_EMAIL_mask_policy",
+                description: "Employee email masking policy for external users",
+                status: "PENDING",
+                createdAt: "2025-10-24T15:00:00Z",
+                table: "PUBLIC.EMPLOYEES",
+                columns: ["EMAIL", "PERSONAL_EMAIL"],
+                piiTypes: ["EMAIL_ADDRESS"],
+                confidence: 0.87,
+                appliedBy: "AtlanActionsEngine",
+                lastModified: "2025-10-24T15:00:00Z"
+            }
+        ];
+
+        const mockAtlanStatus = {
+            enabled: true,
+            lastSync: "2025-10-24T14:30:15Z",
+            syncedItems: 12
+        };
+
+        const PolicyDashboard = () => {
+            const [policies, setPolicies] = useState([]);
+            const [atlanStatus, setAtlanStatus] = useState(null);
+            const [loading, setLoading] = useState(true);
+            const [selectedStatus, setSelectedStatus] = useState("ALL");
+
+            useEffect(() => {
+                // Simulate API call
+                setTimeout(() => {
+                    setPolicies(mockPolicies);
+                    setAtlanStatus(mockAtlanStatus);
+                    setLoading(false);
+                }, 1000);
+            }, []);
+
+            const filteredPolicies = policies.filter(policy => 
+                selectedStatus === "ALL" || policy.status === selectedStatus
+            );
+
+            const getStatusColor = (status) => {
+                switch (status) {
+                    case "ACTIVE": return "#28a745";
+                    case "INACTIVE": return "#dc3545";
+                    case "PENDING": return "#ffc107";
+                    default: return "#6c757d";
+                }
+            };
+
+            const formatDate = (dateString) => {
+                return new Date(dateString).toLocaleString();
+            };
+
+            const getConfidenceColor = (confidence) => {
+                if (confidence >= 0.9) return "#28a745";
+                if (confidence >= 0.8) return "#ffc107";
+                return "#dc3545";
+            };
+
+            if (loading) {
+                return (
+                    <div className="policy-dashboard">
+                        <div className="loading-spinner">
+                            <div className="spinner"></div>
+                            <p>Loading governance policies...</p>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="policy-dashboard">
+                    <header className="dashboard-header">
+                        <h1>🎯 Atlan Actions - Governance Policy Dashboard</h1>
+                        <p>The actions layer between catalog and orchestration</p>
+                    </header>
+
+                    {/* Summary Cards */}
+                    <div className="summary-cards">
+                        <div className="summary-card">
+                            <h3>Total Policies</h3>
+                            <div className="card-value">{policies.length}</div>
+                        </div>
+                        <div className="summary-card">
+                            <h3>Active Policies</h3>
+                            <div className="card-value" style={{ color: "#28a745" }}>
+                                {policies.filter(p => p.status === "ACTIVE").length}
+                            </div>
+                        </div>
+                        <div className="summary-card">
+                            <h3>Protected Tables</h3>
+                            <div className="card-value">
+                                {new Set(policies.map(p => p.table)).size}
+                            </div>
+                        </div>
+                        <div className="summary-card">
+                            <h3>Atlan Sync</h3>
+                            <div className="card-value" style={{ color: atlanStatus?.enabled ? "#28a745" : "#dc3545" }}>
+                                {atlanStatus?.enabled ? "✅ Active" : "❌ Disabled"}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Atlan Status */}
+                    {atlanStatus && (
+                        <div className="atlan-status">
+                            <h3>🏷️ Atlan Catalog Integration</h3>
+                            <div className="status-details">
+                                <span>Last Sync: {formatDate(atlanStatus.lastSync)}</span>
+                                <span>Synced Items: {atlanStatus.syncedItems}</span>
+                                <span className="sync-indicator">🔄 Real-time sync enabled</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Filters */}
+                    <div className="filters">
+                        <label htmlFor="status-filter">Filter by Status:</label>
+                        <select 
+                            id="status-filter"
+                            value={selectedStatus} 
+                            onChange={(e) => setSelectedStatus(e.target.value)}
+                        >
+                            <option value="ALL">All Statuses</option>
+                            <option value="ACTIVE">Active</option>
+                            <option value="INACTIVE">Inactive</option>
+                            <option value="PENDING">Pending</option>
+                        </select>
+                    </div>
+
+                    {/* Policy Table */}
+                    <div className="policy-table-container">
+                        <table className="policy-table">
+                            <thead>
+                                <tr>
+                                    <th>Policy Name</th>
+                                    <th>Table</th>
+                                    <th>Columns</th>
+                                    <th>PII Types</th>
+                                    <th>Status</th>
+                                    <th>Confidence</th>
+                                    <th>Created</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {filteredPolicies.map((policy) => (
+                                    <tr key={policy.id}>
+                                        <td>
+                                            <div className="policy-name">
+                                                <strong>{policy.name}</strong>
+                                                <small>{policy.description}</small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <code>{policy.table}</code>
+                                        </td>
+                                        <td>
+                                            <div className="columns-list">
+                                                {policy.columns.map((column, index) => (
+                                                    <span key={index} className="column-tag">
+                                                        {column}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <div className="pii-types">
+                                                {policy.piiTypes.map((type, index) => (
+                                                    <span key={index} className="pii-tag">
+                                                        {type}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span 
+                                                className="status-badge"
+                                                style={{ 
+                                                    backgroundColor: getStatusColor(policy.status),
+                                                    color: "white"
+                                                }}
+                                            >
+                                                {policy.status}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div className="confidence-score">
+                                                <span 
+                                                    style={{ color: getConfidenceColor(policy.confidence) }}
+                                                >
+                                                    {(policy.confidence * 100).toFixed(1)}%
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <small>{formatDate(policy.createdAt)}</small>
+                                        </td>
+                                        <td>
+                                            <div className="action-buttons">
+                                                <button className="btn btn-sm btn-primary" onClick={() => alert('View policy details')}>View</button>
+                                                <button className="btn btn-sm btn-secondary" onClick={() => alert('Edit policy')}>Edit</button>
+                                                <button className="btn btn-sm btn-danger" onClick={() => alert('Remove policy')}>Remove</button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {filteredPolicies.length === 0 && (
+                        <div className="no-policies">
+                            <p>No policies found for the selected filter.</p>
+                        </div>
+                    )}
+
+                    {/* Footer */}
+                    <footer className="dashboard-footer">
+                        <p>🎯 Actions Engine - Bridging catalog and orchestration with intelligent governance automation</p>
+                        <p>Last updated: {new Date().toLocaleString()}</p>
+                    </footer>
+                </div>
+            );
+        };
+
+        // Render the app
+        ReactDOM.render(<PolicyDashboard />, document.getElementById('root'));
+    </script>
+</body>
+</html>

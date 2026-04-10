@@ -1,0 +1,65 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Environment
+.env
+.env.local
+config.yaml
+
+# Secrets and Keys
+ssh_key
+ssh_key.pub
+*.key
+*.pem
+secrets.json
+credentials.json
+
+# Logs
+*.log
+logs/
+snowflake_queries.log
+
+# Python
+.Python
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.coverage
+
+# Temporary files
+*.tmp
+temp/
+tmp/
+cache/
+
+# IDE files
+*.sublime-project
+*.sublime-workspace
+
+# Config files with sensitive data
+**/config*.yaml
+**/secrets*.yaml
+**/credentials*.json

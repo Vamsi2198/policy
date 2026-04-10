@@ -1,0 +1,142 @@
+✅ SNOWFLAKE QUERY LOGGING - IMPLEMENTATION COMPLETE
+═══════════════════════════════════════════════════════════════════════════════
+
+🎉 Successfully implemented comprehensive Snowflake query logging!
+
+═══════════════════════════════════════════════════════════════════════════════
+📁 FILES CREATED/MODIFIED
+═══════════════════════════════════════════════════════════════════════════════
+
+✏️  MODIFIED:
+   • src/control_pannel.py
+     - Added dedicated query logger setup
+     - Enhanced execute() method with detailed logging
+     - Dual logging: console + file
+     - Captures query ID, execution time, rows affected/returned
+
+   • src/atlan_ai_control_plane.py
+     - Enhanced _phase_execute() with per-command logging
+     - Smart error handling for cleanup operations
+     - Progress tracking with command numbers
+     - Detailed success/failure reporting
+
+✨ CREATED:
+   • src/view_snowflake_logs.py - Interactive log viewer CLI tool
+   • src/test_query_logging.py - Test script for verification
+   • SNOWFLAKE_LOGGING_README.md - Complete user documentation
+   • SNOWFLAKE_LOGGING_SUMMARY.md - Implementation details
+   • LOGGING_QUICK_REFERENCE.txt - Quick command reference
+   • view_logs.ps1 - PowerShell helper script (Windows)
+
+═══════════════════════════════════════════════════════════════════════════════
+🚀 QUICK START
+═══════════════════════════════════════════════════════════════════════════════
+
+1️⃣  Run a test to verify logging:
+   python src/test_query_logging.py
+
+2️⃣  View the generated logs:
+   python src/view_snowflake_logs.py
+
+3️⃣  Or use PowerShell helper (Windows):
+   .\view_logs.ps1 summary
+
+═══════════════════════════════════════════════════════════════════════════════
+📊 WHAT YOU GET
+═══════════════════════════════════════════════════════════════════════════════
+
+Every Snowflake query now logs:
+✓ Full SQL query text
+✓ Execution timestamp
+✓ Execution time (millisecond precision)
+✓ Rows affected/returned count
+✓ Snowflake Query ID (for console lookup)
+✓ Success/failure status with visual indicators
+✓ Detailed error messages for failures
+✓ Sample results for SELECT queries
+
+═══════════════════════════════════════════════════════════════════════════════
+🔍 VIEWING LOGS
+═══════════════════════════════════════════════════════════════════════════════
+
+Using Python script:
+  python src/view_snowflake_logs.py                    # All logs + summary
+  python src/view_snowflake_logs.py --summary-only     # Statistics only
+  python src/view_snowflake_logs.py --status FAILED --errors  # Debug failures
+  python src/view_snowflake_logs.py --limit 10         # Last 10 queries
+
+Using PowerShell (Windows):
+  .\view_logs.ps1 summary          # Show statistics
+  .\view_logs.ps1 failed -Errors   # Show failures with details
+  .\view_logs.ps1 recent -Limit 5  # Last 5 queries
+  .\view_logs.ps1 tail             # Watch real-time
+  .\view_logs.ps1 help             # Show all options
+
+Direct file access:
+  cat snowflake_queries.log                            # View all
+  tail -f snowflake_queries.log                        # Watch real-time
+  grep -A 10 "FAILED" snowflake_queries.log           # Find failures
+
+═══════════════════════════════════════════════════════════════════════════════
+🎯 COMMON SCENARIOS
+═══════════════════════════════════════════════════════════════════════════════
+
+❌ Query Failed - Need to Debug:
+   .\view_logs.ps1 failed -Errors
+   → Shows last failed query with full error details and Query ID
+
+⏱️  Check Performance:
+   .\view_logs.ps1 summary
+   → Shows total queries, success rate, and average execution time
+
+🔎 Find Specific Query Type:
+   python src/view_snowflake_logs.py --type "CREATE MASKING POLICY"
+   → Shows all CREATE MASKING POLICY queries
+
+📊 Monitor Production:
+   .\view_logs.ps1 tail
+   → Real-time log monitoring (Ctrl+C to stop)
+
+═══════════════════════════════════════════════════════════════════════════════
+📖 DOCUMENTATION
+═══════════════════════════════════════════════════════════════════════════════
+
+Complete guide:     SNOWFLAKE_LOGGING_README.md
+Implementation:     SNOWFLAKE_LOGGING_SUMMARY.md
+Quick reference:    LOGGING_QUICK_REFERENCE.txt
+PowerShell help:    .\view_logs.ps1 help
+
+═══════════════════════════════════════════════════════════════════════════════
+✅ BENEFITS
+═══════════════════════════════════════════════════════════════════════════════
+
+🐛 Debugging:      Quick identification of failed queries with detailed errors
+⚡ Performance:    Track execution times and identify slow queries
+📝 Audit Trail:    Complete history of all database operations
+🔍 Monitoring:     Real-time and historical query analysis
+✅ Compliance:     Evidence of what queries were executed and when
+🔧 Troubleshooting: Query IDs for deep investigation in Snowflake console
+
+═══════════════════════════════════════════════════════════════════════════════
+🎊 READY TO USE!
+═══════════════════════════════════════════════════════════════════════════════
+
+The logging is now active and will automatically capture all Snowflake queries
+executed through the governance platform. Run your governance commands as usual
+and check the logs to see detailed execution information!
+
+Example:
+  # Run your governance command
+  python src/run_atlan_demo.py
+
+  # Then view what queries were executed
+  .\view_logs.ps1 recent -Limit 10
+
+═══════════════════════════════════════════════════════════════════════════════
+
+Questions? Check the documentation or run the test script to see it in action!
+
+  python src/test_query_logging.py
+  .\view_logs.ps1 help
+
+Happy querying! 🚀

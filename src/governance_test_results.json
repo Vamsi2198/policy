@@ -1,0 +1,28 @@
+[
+  {
+    "scenario_id": 1,
+    "title": "Automatically discover PII and apply intelligent masking",
+    "category": "Data Privacy",
+    "query": "mask all PII data in customers table",
+    "timestamp": "2025-10-14T21:46:38.599664",
+    "status": "SUCCESS",
+    "execution_time": 6.318608999252319,
+    "confidence": 0.9,
+    "sql_generated": [
+      "BEGIN",
+      "UPDATE PUBLIC.CUSTOMERS SET FIRST_NAME = LEFT(FIRST_NAME, 1) || '***' WHERE FIRST_NAME IS NOT NULL",
+      "UPDATE PUBLIC.CUSTOMERS SET LAST_NAME = LEFT(LAST_NAME, 1) || '***' WHERE LAST_NAME IS NOT NULL",
+      "UPDATE PUBLIC.CUSTOMERS SET EMAIL = LEFT(EMAIL, 2) || '****@' || SPLIT_PART(EMAIL, '@', 2) WHERE EMAIL IS NOT NULL",
+      "UPDATE PUBLIC.CUSTOMERS SET PHONE = 'XXX-XXX-' || RIGHT(PHONE, 4) WHERE PHONE IS NOT NULL",
+      "UPDATE PUBLIC.CUSTOMERS SET SSN = 'XXX-XX-' || RIGHT(SSN, 4) WHERE SSN IS NOT NULL",
+      "UPDATE PUBLIC.CUSTOMERS SET ADDRESS = 'XXXX ' || SPLIT_PART(ADDRESS, ' ', -1) WHERE ADDRESS IS NOT NULL",
+      "UPDATE PUBLIC.CUSTOMERS SET CITY = '***' WHERE CITY IS NOT NULL",
+      "UPDATE PUBLIC.CUSTOMERS SET STATE = '***' WHERE STATE IS NOT NULL",
+      "UPDATE PUBLIC.CUSTOMERS SET ZIP_CODE = '*****' WHERE ZIP_CODE IS NOT NULL",
+      "COMMIT"
+    ],
+    "explanation": "Database masking operation to permanently modify sensitive data based on: mask all PII data in customers table",
+    "detected_action": "MASKING",
+    "errors": []
+  }
+]

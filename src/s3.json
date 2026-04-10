@@ -1,0 +1,65 @@
+[
+  {
+    "name": "dineshwar",
+    "salary": 2000,
+    "email": "dineshwar.a@example.com",
+    "ssn": "123-45-6789",
+    "address": "245 Maple Street, Denver, CO 80203"
+  },
+  {
+    "name":"mula vamsi krishna",
+    "salary": 68000,
+    "email": "mula.vamsi.krishna@example.com",
+    "ssn": "234-56-7890",
+    "address": "18 Oak Drive, Austin, TX 73301"
+  },
+  {
+    "name": "Carla Reyes",
+    "salary": 81500,
+    "email": "carla.reyes@example.com",
+    "ssn": "345-67-8901",
+    "address": "99 Pine Avenue, Miami, FL 33101"
+  },
+  {
+    "name": "Daniel Carter",
+    "salary": 59000,
+    "email": "daniel.carter@example.com",
+    "ssn": "456-78-9012",
+    "address": "500 Elm Street, Portland, OR 97201"
+  },
+  {
+    "name": "Emily Turner",
+    "salary": 94000,
+    "email": "emily.turner@example.com",
+    "ssn": "567-89-0123",
+    "address": "77 Cedar Lane, Seattle, WA 98101"
+  },
+  {
+    "name": "Franklin Brooks",
+    "salary": 71000,
+    "email": "franklin.brooks@example.com",
+    "ssn": "678-90-1234",
+    "address": "600 Willow Road, Chicago, IL 60601"
+  },
+  {
+    "name": "Grace Kim",
+    "salary": 102000,
+    "email": "grace.kim@example.com",
+    "ssn": "789-01-2345",
+    "address": "42 Birch Street, Boston, MA 02108"
+  },
+  {
+    "name": "Henry Cole",
+    "salary": 65000,
+    "email": "henry.cole@example.com",
+    "ssn": "890-12-3456",
+    "address": "154 Aspen Blvd, Phoenix, AZ 85001"
+  },
+  {
+    "name": "Ivy Patel",
+    "salary": 88000,
+    "email": "ivy.patel@example.com",
+    "ssn": "901-23-4567",
+    "address": "210 Redwood Way, San Jose, CA 95101"
+  }
+]

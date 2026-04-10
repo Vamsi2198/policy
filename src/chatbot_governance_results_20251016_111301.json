@@ -1,0 +1,27 @@
+{
+  "test_summary": {
+    "total_tests": 1,
+    "successful": 1,
+    "partial": 0,
+    "errors": 0,
+    "success_rate": 1.0,
+    "total_execution_time": 25.25296688079834,
+    "timestamp": "2025-10-16T11:13:01.272172"
+  },
+  "test_results": [
+    {
+      "scenario_id": 1,
+      "name": "Automatically discover PII and apply intelligent masking",
+      "query": "mask all PII data in the CUSTOMERS table",
+      "status": "SUCCESS",
+      "execution_time": 17.079180240631104,
+      "result": {
+        "success": true,
+        "stdout": "Presidio initialization failed: ForwardRef._evaluate() missing 1 required keyword-only argument: 'recursive_guard'. Using regex fallback.\n2025-10-16 11:12:43,812 - PIIAnalyzer - WARNING - Presidio initialization failed: ForwardRef._evaluate() missing 1 required keyword-only argument: 'recursive_guard'. Using regex fallback.\n2025-10-16 11:12:47,158 - numexpr.utils - INFO - NumExpr defaulting to 4 threads.\n2025-10-16 11:12:48,194 - snowflake.connector.connection - INFO - Snowflake Connector for Python Version: 4.0.0, Python Version: 3.12.7, Platform: Windows-11-10.0.26100-SP0\n2025-10-16 11:12:48,196 - snowflake.connector.connection - INFO - Connecting to GLOBAL Snowflake domain\n2025-10-16 11:12:51,048 - SnowflakeConnector - INFO - Connected to Snowflake: MSBZVOK-HV50703\n================================================================================\nTraceback (most recent call last):\n  File \"C:\\Users\\mula.krishna\\Documents\\policy2\\src\\control_pannel.py\", line 3382, in <module>\n    exit(main())\n         ^^^^^^\n  File \"C:\\Users\\mula.krishna\\Documents\\policy2\\src\\control_pannel.py\", line 3292, in main\n    run_data_chatbot()\n  File \"C:\\Users\\mula.krishna\\Documents\\policy2\\src\\control_pannel.py\", line 2937, in run_data_chatbot\n    print(\"\\U0001f916 DATA CHATBOT - Ask Questions About Your Data!\")\n  File \"C:\\Users\\mula.krishna\\AppData\\Local\\anaconda3\\Lib\\encodings\\cp1252.py\", line 19, in encode\n    return codecs.charmap_encode(input,self.errors,encoding_table)[0]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nUnicodeEncodeError: 'charmap' codec can't encode character '\\U0001f916' in position 0: character maps to <undefined>\n",
+        "stderr": "",
+        "return_code": 1,
+        "full_output": "Presidio initialization failed: ForwardRef._evaluate() missing 1 required keyword-only argument: 'recursive_guard'. Using regex fallback.\n2025-10-16 11:12:43,812 - PIIAnalyzer - WARNING - Presidio initialization failed: ForwardRef._evaluate() missing 1 required keyword-only argument: 'recursive_guard'. Using regex fallback.\n2025-10-16 11:12:47,158 - numexpr.utils - INFO - NumExpr defaulting to 4 threads.\n2025-10-16 11:12:48,194 - snowflake.connector.connection - INFO - Snowflake Connector for Python Version: 4.0.0, Python Version: 3.12.7, Platform: Windows-11-10.0.26100-SP0\n2025-10-16 11:12:48,196 - snowflake.connector.connection - INFO - Connecting to GLOBAL Snowflake domain\n2025-10-16 11:12:51,048 - SnowflakeConnector - INFO - Connected to Snowflake: MSBZVOK-HV50703\n================================================================================\nTraceback (most recent call last):\n  File \"C:\\Users\\mula.krishna\\Documents\\policy2\\src\\control_pannel.py\", line 3382, in <module>\n    exit(main())\n         ^^^^^^\n  File \"C:\\Users\\mula.krishna\\Documents\\policy2\\src\\control_pannel.py\", line 3292, in main\n    run_data_chatbot()\n  File \"C:\\Users\\mula.krishna\\Documents\\policy2\\src\\control_pannel.py\", line 2937, in run_data_chatbot\n    print(\"\\U0001f916 DATA CHATBOT - Ask Questions About Your Data!\")\n  File \"C:\\Users\\mula.krishna\\AppData\\Local\\anaconda3\\Lib\\encodings\\cp1252.py\", line 19, in encode\n    return codecs.charmap_encode(input,self.errors,encoding_table)[0]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nUnicodeEncodeError: 'charmap' codec can't encode character '\\U0001f916' in position 0: character maps to <undefined>\n"
+      }
+    }
+  ]
+}

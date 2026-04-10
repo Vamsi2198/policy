@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # PostgreSQL for testing
+  postgres:
+    image: postgres:15
+    container_name: control-plane-postgres
+    environment:
+      POSTGRES_DB: testdb
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init_test_data.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testuser -d testdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Control Plane App
+  control-plane:
+    build: .
+    container_name: control-plane-app
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - PLATFORM_TYPE=postgres
+      - PLATFORM_HOST=postgres
+      - PLATFORM_PORT=5432
+      - PLATFORM_DATABASE=testdb
+      - PLATFORM_USER=testuser
+      - PLATFORM_PASSWORD=testpass123
+    volumes:
+      - ./control_plane.py:/app/control_plane.py
+      - ./config.yaml:/app/config.yaml
+      - ./audit.db:/app/audit.db
+      - ./logs:/app/logs
+    command: python control_plane.py --run-all --export /app/logs/results.json
+
+volumes:
+  postgres_data:
+
+# Usage:
+# docker-compose up -d postgres           # Start test database
+# docker-compose run control-plane        # Run control plane
+# docker-compose down                     # Stop everything

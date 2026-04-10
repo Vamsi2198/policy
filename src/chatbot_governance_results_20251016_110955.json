@@ -1,0 +1,39 @@
+{
+  "test_summary": {
+    "total_tests": 2,
+    "successful": 2,
+    "partial": 0,
+    "errors": 0,
+    "success_rate": 1.0,
+    "total_execution_time": 40.4049174785614,
+    "timestamp": "2025-10-16T11:09:55.367310"
+  },
+  "test_results": [
+    {
+      "scenario_id": 1,
+      "name": "Automatically discover PII and apply intelligent masking",
+      "query": "mask all PII data in the CUSTOMERS table",
+      "status": "SUCCESS",
+      "execution_time": 21.40871238708496,
+      "result": {
+        "success": true,
+        "stdout": "================================================================================\n",
+        "stderr": "Presidio initialization failed: ForwardRef._evaluate() missing 1 required keyword-only argument: 'recursive_guard'. Using regex fallback.\n2025-10-16 11:09:24,621 - PIIAnalyzer - WARNING - Presidio initialization failed: ForwardRef._evaluate() missing 1 required keyword-only argument: 'recursive_guard'. Using regex fallback.\n2025-10-16 11:09:25,281 - numexpr.utils - INFO - NumExpr defaulting to 4 threads.\n2025-10-16 11:09:26,970 - snowflake.connector.connection - INFO - Snowflake Connector for Python Version: 4.0.0, Python Version: 3.12.7, Platform: Windows-11-10.0.26100-SP0\n2025-10-16 11:09:26,970 - snowflake.connector.connection - INFO - Connecting to GLOBAL Snowflake domain\n2025-10-16 11:09:32,503 - SnowflakeConnector - INFO - Connected to Snowflake: MSBZVOK-HV50703\nTraceback (most recent call last):\n  File \"C:\\Users\\mula.krishna\\Documents\\policy2\\src\\control_pannel.py\", line 3382, in <module>\n    exit(main())\n         ^^^^^^\n  File \"C:\\Users\\mula.krishna\\Documents\\policy2\\src\\control_pannel.py\", line 3292, in main\n    run_data_chatbot()\n  File \"C:\\Users\\mula.krishna\\Documents\\policy2\\src\\control_pannel.py\", line 2937, in run_data_chatbot\n    print(\"\\U0001f916 DATA CHATBOT - Ask Questions About Your Data!\")\n  File \"C:\\Users\\mula.krishna\\AppData\\Local\\anaconda3\\Lib\\encodings\\cp1252.py\", line 19, in encode\n    return codecs.charmap_encode(input,self.errors,encoding_table)[0]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nUnicodeEncodeError: 'charmap' codec can't encode character '\\U0001f916' in position 0: character maps to <undefined>\n",
+        "return_code": 1
+      }
+    },
+    {
+      "scenario_id": 2,
+      "name": "Dynamic access control based on time, location, and data sensitivity",
+      "query": "implement dynamic access control for sensitive data based on business hours",
+      "status": "SUCCESS",
+      "execution_time": 15.493253231048584,
+      "result": {
+        "success": true,
+        "stdout": "================================================================================\n",
+        "stderr": "Presidio initialization failed: ForwardRef._evaluate() missing 1 required keyword-only argument: 'recursive_guard'. Using regex fallback.\n2025-10-16 11:09:43,451 - PIIAnalyzer - WARNING - Presidio initialization failed: ForwardRef._evaluate() missing 1 required keyword-only argument: 'recursive_guard'. Using regex fallback.\n2025-10-16 11:09:45,594 - numexpr.utils - INFO - NumExpr defaulting to 4 threads.\n2025-10-16 11:09:46,744 - snowflake.connector.connection - INFO - Snowflake Connector for Python Version: 4.0.0, Python Version: 3.12.7, Platform: Windows-11-10.0.26100-SP0\n2025-10-16 11:09:46,746 - snowflake.connector.connection - INFO - Connecting to GLOBAL Snowflake domain\n2025-10-16 11:09:50,133 - SnowflakeConnector - INFO - Connected to Snowflake: MSBZVOK-HV50703\nTraceback (most recent call last):\n  File \"C:\\Users\\mula.krishna\\Documents\\policy2\\src\\control_pannel.py\", line 3382, in <module>\n    exit(main())\n         ^^^^^^\n  File \"C:\\Users\\mula.krishna\\Documents\\policy2\\src\\control_pannel.py\", line 3292, in main\n    run_data_chatbot()\n  File \"C:\\Users\\mula.krishna\\Documents\\policy2\\src\\control_pannel.py\", line 2937, in run_data_chatbot\n    print(\"\\U0001f916 DATA CHATBOT - Ask Questions About Your Data!\")\n  File \"C:\\Users\\mula.krishna\\AppData\\Local\\anaconda3\\Lib\\encodings\\cp1252.py\", line 19, in encode\n    return codecs.charmap_encode(input,self.errors,encoding_table)[0]\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nUnicodeEncodeError: 'charmap' codec can't encode character '\\U0001f916' in position 0: character maps to <undefined>\n",
+        "return_code": 1
+      }
+    }
+  ]
+}
