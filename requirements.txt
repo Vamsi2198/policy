@@ -8,8 +8,8 @@ sqlalchemy==2.0.23
 
 # NL to SQL conversion
 openai>=0.27.0
-presidio-analyzer==2.2.8
-presidio-anonymizer==2.2.8
+presidio-analyzer==2.2.28
+presidio-anonymizer==2.2.28
 
 # Data handling
 pandas==2.0.3
