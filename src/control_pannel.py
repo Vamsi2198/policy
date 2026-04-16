@@ -2667,22 +2667,46 @@ class ControlPlaneEngine:
     
     def _load_config(self, path: str) -> Dict[str, Any]:
         """Load platform configuration"""
+        config: Dict[str, Any] = {}
+
+        # Load file config if available.
         if os.path.exists(path):
             with open(path, 'r') as f:
-                return yaml.safe_load(f)
-        else:
-            # Return example config
-            return {
-                'platform': {
-                    'type': 'snowflake',
-                    'account': 'YOUR_ACCOUNT',
-                    'user': 'YOUR_USER',
-                    'password': 'YOUR_PASSWORD',
-                    'warehouse': 'COMPUTE_WH',
-                    'database': 'YOUR_DB',
-                    'schema': 'PUBLIC'
-                }
+                config = yaml.safe_load(f) or {}
+
+        platform_cfg = dict(config.get('platform', {}))
+
+        # Environment overrides (Render/containers).
+        env_overrides = {
+            'type': os.getenv('PLATFORM_TYPE') or os.getenv('SNOWFLAKE_PLATFORM_TYPE'),
+            'account': os.getenv('SNOWFLAKE_ACCOUNT') or os.getenv('PLATFORM_ACCOUNT'),
+            'user': os.getenv('SNOWFLAKE_USER') or os.getenv('PLATFORM_USER'),
+            'password': os.getenv('SNOWFLAKE_PASSWORD') or os.getenv('PLATFORM_PASSWORD'),
+            'warehouse': os.getenv('SNOWFLAKE_WAREHOUSE') or os.getenv('PLATFORM_WAREHOUSE'),
+            'database': os.getenv('SNOWFLAKE_DATABASE') or os.getenv('PLATFORM_DATABASE'),
+            'schema': os.getenv('SNOWFLAKE_SCHEMA') or os.getenv('PLATFORM_SCHEMA'),
+            'role': os.getenv('SNOWFLAKE_ROLE') or os.getenv('PLATFORM_ROLE'),
+            'authenticator': os.getenv('SNOWFLAKE_AUTHENTICATOR') or os.getenv('PLATFORM_AUTHENTICATOR'),
+        }
+
+        for key, value in env_overrides.items():
+            if value:
+                platform_cfg[key] = value
+
+        # Final safety defaults to avoid placeholder config in production.
+        if not platform_cfg:
+            platform_cfg = {
+                'type': 'snowflake',
+                'account': 'YOUR_ACCOUNT',
+                'user': 'YOUR_USER',
+                'password': 'YOUR_PASSWORD',
+                'warehouse': 'COMPUTE_WH',
+                'database': 'YOUR_DB',
+                'schema': 'PUBLIC'
             }
+
+        config['platform'] = platform_cfg
+        return config
     
     def connect_platform(self) -> bool:
         """Connect to configured platform"""

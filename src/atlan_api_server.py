@@ -129,9 +129,15 @@ def process_command():
                     'base_url': os.getenv('ATLAN_BASE_URL', 'https://demo.atlan.com'),
                     'api_token': os.getenv('ATLAN_API_TOKEN')
                 } if os.getenv('ATLAN_API_TOKEN') else None
+
+                config_path = os.getenv(
+                    'CONFIG_PATH',
+                    os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'config.yaml'))
+                )
                 
                 print("⏳ Initializing Atlan Actions Engine on first use (lazy loading)...")
                 actions_engine = AtlanActionsEngine(
+                    config_path=config_path,
                     execution_mode="direct",
                     atlan_config=atlan_config
                 )
