@@ -17,10 +17,27 @@ from flask_cors import CORS
 from datetime import datetime
 from queue import Queue
 
+
+def make_json_safe(value):
+    """Recursively convert non-JSON-safe objects into JSON-serializable structures."""
+    if isinstance(value, dict):
+        return {str(k): make_json_safe(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [make_json_safe(v) for v in value]
+    if isinstance(value, tuple) or isinstance(value, set):
+        return [make_json_safe(v) for v in value]
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if hasattr(value, 'to_dict') and callable(value.to_dict):
+        return make_json_safe(value.to_dict())
+    if hasattr(value, '__dict__'):
+        return make_json_safe(vars(value))
+    return value
+
 # For ngrok tunneling
 try:
     from pyngrok import ngrok
-    NGROK_AVAILABLE = True
+    NGROK_AVAILABLE = False  # Temporarily disable ngrok for testing
 except ImportError:
     NGROK_AVAILABLE = False
     print("⚠️  ngrok not available. Install with: pip install pyngrok")
@@ -237,13 +254,15 @@ def process_command():
                     affected_columns_list = proposed_cols
             
             print(f"[DEBUG] Final values - rows_affected: {rows_affected}, columns_affected: {columns_affected}")
+
+            safe_original_results = make_json_safe(original_results) if original_results is not None else None
             
             results = {
                 'status': 'pending_approval',  # Always wait for approval after phases 1-4
                 'command': command,
                 'request_id': session_id,
                 'current_phase': 4,
-                'original_response': original_results,  # Store for reference
+                'original_response': safe_original_results,  # Store safe version for JSON serialization
                 'phases': {
                     'observe': {'status': 'completed', 'message': 'Schema analyzed'},
                     'analyze': {'status': 'completed', 'message': 'PII detected'},
@@ -266,17 +285,18 @@ def process_command():
                     'learn': {'status': 'pending', 'message': 'Ready to learn'}
                 },
                 'message': 'Review the proposed changes and approve to proceed',
-                'pii_findings': original_results.get('pii_findings', [
-                    {'column': 'EMAIL', 'type': 'EMAIL_ADDRESS', 'table': 'CUSTOMERS', 'masking_type': 'MASK'},
-                    {'column': 'PHONE', 'type': 'PHONE_NUMBER', 'table': 'CUSTOMERS', 'masking_type': 'MASK'},
-                    {'column': 'SSN', 'type': 'US_SSN', 'table': 'CUSTOMERS', 'masking_type': 'HASH'}
-                ]),
-                'proposed_changes': original_results.get('proposed_changes', {
-                    'table': 'CUSTOMERS',
+                'pii_findings': safe_original_results.get('pii_findings', []) if safe_original_results else [],
+                'proposed_changes': safe_original_results.get('proposed_changes', {
+                    'table': 'EMPLOYEE',
                     'operation': 'APPLY_MASKING_POLICY',
-                    'affected_rows': 5000,
-                    'columns_affected': ['EMAIL', 'PHONE', 'SSN']
-                })
+                    'affected_rows': 0,
+                    'columns_affected': []
+                }) if safe_original_results else {
+                    'table': 'EMPLOYEE',
+                    'operation': 'APPLY_MASKING_POLICY',
+                    'affected_rows': 0,
+                    'columns_affected': []
+                }
             }
         else:
             # Fallback: return a response waiting for approval at stage 4
@@ -368,11 +388,11 @@ def process_command():
             # Only if we actually have real results from the engine (not fallback mode)
             if original_results and isinstance(original_results, dict) and 'phases' in original_results:
                 try:
-                    phase_progress[session_id]['original_results'] = original_results
+                    phase_progress[session_id]['original_results'] = safe_original_results
                     # Specifically store the plan phase with sql_commands
-                    if 'plan' in original_results['phases']:
-                        phase_progress[session_id]['result_phases']['plan'] = original_results['phases']['plan']
-                        sql_cmd_count = len(original_results['phases']['plan'].get('sql_commands', []))
+                    if safe_original_results and 'plan' in safe_original_results['phases']:
+                        phase_progress[session_id]['result_phases']['plan'] = safe_original_results['phases']['plan']
+                        sql_cmd_count = len(safe_original_results['phases']['plan'].get('sql_commands', []))
                         if sql_cmd_count > 0:
                             print(f"✅ Stored plan phase with {sql_cmd_count} SQL commands")
                 except Exception as e:

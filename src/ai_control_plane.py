@@ -1302,9 +1302,13 @@ class AIControlPlane:
             import time
             timestamp = str(int(time.time()))
             
-            # Get configured schema (fallback to PUBLIC if not in config)
-            configured_schema = self.engine.config.get('schema', 'DEMO_SCHEMA').upper()
-            
+            # Get configured schema, fallback to current Snowflake schema if not configured
+            configured_schema = self.engine.config.get('schema')
+            if not configured_schema:
+                configured_schema = self._get_current_schema()
+            else:
+                configured_schema = configured_schema.upper()
+
             for table in observe_result.target_entities:
                 # Ensure table has schema prefix (default to configured schema if not present)
                 if '.' not in table:
@@ -1973,28 +1977,107 @@ class AIControlPlane:
         # Fallback to common Snowflake system roles if not connected
         return ['ACCOUNTADMIN', 'SYSADMIN', 'USERADMIN', 'SECURITYADMIN', 'PUBLIC']
     
+    def _get_current_schema(self) -> str:
+        """Get the current Snowflake schema for the active connection."""
+        try:
+            cursor = self.engine.connector.connection.cursor()
+            cursor.execute("SELECT CURRENT_SCHEMA()")
+            current_schema = cursor.fetchone()[0]
+            return current_schema.upper() if current_schema else 'PUBLIC'
+        except Exception as e:
+            self.logger.warning(f"Could not determine current Snowflake schema: {e}")
+            return 'PUBLIC'
+
+    def _get_current_database(self) -> str:
+        """Get the current Snowflake database for the active connection."""
+        try:
+            cursor = self.engine.connector.connection.cursor()
+            cursor.execute("SELECT CURRENT_DATABASE()")
+            current_db = cursor.fetchone()[0]
+            return current_db.upper() if current_db else ''
+        except Exception as e:
+            self.logger.warning(f"Could not determine current Snowflake database: {e}")
+            return ''
+
+    def _find_table_location(self, table_name: str) -> tuple[str, str] | None:
+        """Search all accessible Snowflake databases for a table location."""
+        table_name = table_name.upper()
+        try:
+            cursor = self.engine.connector.connection.cursor()
+            current_db = self._get_current_database()
+            self.logger.info(f"🔎 Searching for table {table_name} across Snowflake databases (current DB={current_db})")
+
+            if current_db:
+                try:
+                    cursor.execute(
+                        f"SELECT TABLE_SCHEMA FROM \"{current_db}\".INFORMATION_SCHEMA.TABLES "
+                        f"WHERE TABLE_NAME = '{table_name}' LIMIT 1"
+                    )
+                    row = cursor.fetchone()
+                    if row:
+                        found_schema = row[0].upper()
+                        self.logger.info(f"✅ Found table {table_name} in {current_db}.{found_schema}")
+                        return current_db, found_schema
+                except Exception as e:
+                    self.logger.warning(f"Could not search current database {current_db} for {table_name}: {e}")
+
+            cursor.execute("SHOW DATABASES")
+            for row in cursor.fetchall():
+                db_name = row[1] if len(row) > 1 else row[0]
+                db_name = db_name.upper()
+                if db_name == current_db:
+                    continue
+
+                try:
+                    cursor.execute(
+                        f"SELECT TABLE_SCHEMA FROM \"{db_name}\".INFORMATION_SCHEMA.TABLES "
+                        f"WHERE TABLE_NAME = '{table_name}' LIMIT 1"
+                    )
+                    row = cursor.fetchone()
+                    if row:
+                        found_schema = row[0].upper()
+                        self.logger.info(f"✅ Found table {table_name} in {db_name}.{found_schema}")
+                        return db_name, found_schema
+                except Exception as e:
+                    self.logger.warning(f"Could not search database {db_name} for {table_name}: {e}")
+                    continue
+
+            self.logger.warning(f"Table {table_name} not found in any accessible database")
+        except Exception as e:
+            self.logger.warning(f"Could not search for table location for {table_name}: {e}")
+        return None
+
     def _get_table_columns(self, schema: str, table_name: str) -> List[Dict[str, str]]:
         """DYNAMICALLY fetch actual columns from Snowflake table"""
         try:
             if self.engine.connect_platform():
                 cursor = self.engine.connector.connection.cursor()
-                # Normalize to uppercase for Snowflake
-                schema = schema.upper() if schema else 'DEMO_SCHEMA'
+                schema = schema.upper() if schema else self._get_current_schema()
                 table_name = table_name.upper() if table_name else ''
                 query = f'DESCRIBE TABLE "{schema}"."{table_name}"'
-                cursor.execute(query)
+                self.logger.info(f"📌 Attempting to describe table {schema}.{table_name}")
+                try:
+                    cursor.execute(query)
+                except Exception as e:
+                    self.logger.warning(f"Could not describe {schema}.{table_name}: {e}")
+                    location = self._find_table_location(table_name)
+                    if location:
+                        db_name, found_schema = location
+                        query = f'DESCRIBE TABLE "{db_name}"."{found_schema}"."{table_name}"'
+                        self.logger.info(f"📌 Retrying with fully qualified identifier {db_name}.{found_schema}.{table_name}")
+                        cursor.execute(query)
+                    else:
+                        raise
+
                 results = cursor.fetchall()
-                
-                columns = []
-                for row in results:
-                    columns.append({'name': row[0], 'type': row[1]})
-                
+                columns = [{'name': row[0], 'type': row[1]} for row in results]
+
                 if columns:
                     self.logger.info(f"✅ Fetched {len(columns)} columns from {schema}.{table_name}: {[c['name'] for c in columns]}")
                     return columns
+                self.logger.warning(f"No columns returned for {schema}.{table_name}")
         except Exception as e:
             self.logger.warning(f"Could not fetch columns from {schema}.{table_name}: {e}")
-        
         return []
     
     def _filter_columns_by_request(self, all_columns: List[str], user_request: str) -> List[str]:
