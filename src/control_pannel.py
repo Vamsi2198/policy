@@ -2693,6 +2693,10 @@ class ControlPlaneEngine:
             if value:
                 platform_cfg[key] = value
 
+        # Ensure required platform keys exist even when only partial env vars are set.
+        if 'type' not in platform_cfg or not platform_cfg.get('type'):
+            platform_cfg['type'] = 'snowflake'
+
         # Final safety defaults to avoid placeholder config in production.
         if not platform_cfg:
             platform_cfg = {
@@ -2710,7 +2714,7 @@ class ControlPlaneEngine:
     
     def connect_platform(self) -> bool:
         """Connect to configured platform"""
-        platform_type = self.config['platform']['type']
+        platform_type = self.config.get('platform', {}).get('type', 'snowflake')
         
         if platform_type == 'snowflake':
             self.connector = SnowflakeConnector(self.config['platform'])
