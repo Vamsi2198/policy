@@ -1795,8 +1795,7 @@ DYNAMIC_DASHBOARD_HTML = '''
         }
         
         .command-panel h3:before {
-            content: "💬";
-            font-size: 1.1rem;
+            content: "";
         }
         
         .command-input {
@@ -1909,8 +1908,7 @@ DYNAMIC_DASHBOARD_HTML = '''
         }
         
         .phase-progress h3:before {
-            content: "⚙️";
-            font-size: 1.1rem;
+            content: "";
         }
         
         .phases-container {
@@ -2368,8 +2366,7 @@ DYNAMIC_DASHBOARD_HTML = '''
         }
         
         .policy-header:before {
-            content: "🛡️";
-            font-size: 1.1rem;
+            content: "";
         }
         
         .policy-details p {
@@ -2410,10 +2407,7 @@ DYNAMIC_DASHBOARD_HTML = '''
         }
         
         .empty-state:before {
-            content: "🚀";
-            font-size: 3rem;
-            margin-bottom: 20px;
-            display: block;
+            content: "";
         }
         
         .hidden {
@@ -2491,13 +2485,21 @@ DYNAMIC_DASHBOARD_HTML = '''
         }
         
         .badge-icon {
-            font-size: 1.5rem;
-            animation: pulse-icon 2s infinite;
+            width: 30px;
+            height: 30px;
+            border-radius: 9px;
+            background: #e7eef8;
+            color: #2f4a67;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.85rem;
+            font-weight: 800;
         }
         
         @keyframes pulse-icon {
             0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
+            50% { transform: scale(1); }
         }
         
         .badge-info {
@@ -3026,13 +3028,13 @@ DYNAMIC_DASHBOARD_HTML = '''
     <div class="container">
         <header class="header">
             <h1>AA GCP <span class="version-tag">202</span></h1>
-            <p>Natural language governance automation</p>
+            <p>Governance automation workspace</p>
         </header>
         
         <!-- Info Badges (Fixed Position) -->
         <div class="info-badges">
             <div class="info-badge metadata" onclick="openMetadataPopup()">
-                <div class="badge-icon">📊</div>
+                <div class="badge-icon">M</div>
                 <div class="badge-info">
                     <div class="badge-label">Metadata</div>
                     <div class="badge-count" id="metadataBadgeCount">0</div>
@@ -3040,7 +3042,7 @@ DYNAMIC_DASHBOARD_HTML = '''
             </div>
             
             <div class="info-badge audit" onclick="openAuditPopup()">
-                <div class="badge-icon">📋</div>
+                <div class="badge-icon">A</div>
                 <div class="badge-info">
                     <div class="badge-label">Audit Logs</div>
                     <div class="badge-count" id="auditBadgeCount">0</div>
@@ -3051,20 +3053,20 @@ DYNAMIC_DASHBOARD_HTML = '''
         <!-- Navigation Tabs -->
         <div class="dashboard-tabs">
             <button class="tab-button active" onclick="showTab('governance', event)">
-                🎯 Governance Engine
+                Governance Engine
             </button>
             <button class="tab-button" onclick="showTab('metadata', event)">
-                📊 Metadata
+                Metadata
             </button>
             <button class="tab-button" onclick="showTab('audit', event)">
-                📋 Audit Logs
+                Audit Logs
             </button>
         </div>
         
         <!-- Governance Tab (Existing) -->
         <div id="governanceTab" class="tab-content active-tab">
         <div class="command-panel">
-            <h3>� Natural Language Commands</h3>
+            <h3>Natural Language Commands</h3>
             <div class="command-input">
                 <input 
                     type="text" 
@@ -3076,13 +3078,13 @@ DYNAMIC_DASHBOARD_HTML = '''
             
             <div class="quick-commands">
                 <span class="quick-cmd" onclick="setCommand('mask Salary in employees table for analyst role')">
-                    Mask Salary in Employees
+                    Mask Salary in employees table for analyst role
                 </span>
                 <span class="quick-cmd" onclick="setCommand('mask pii in customers table for analyst role')">
-                    Mask PII in Customers
+                    mask pii in customers table for analyst role
                 </span>
                 <span class="quick-cmd" onclick="setCommand('mask email and phone number in customers table for non admin users')">
-                    Mask for non admin users
+                    Mask email and phone number in customers table for non admin users
                 </span>
                 <span class="quick-cmd" onclick="processS3Command()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: 600;">
                     🗂️ Process S3 Data
