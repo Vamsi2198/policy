@@ -1698,7 +1698,22 @@ DYNAMIC_DASHBOARD_HTML = '''
     <meta http-equiv="Expires" content="0">
     <title>AA GCP - Dynamic Policy Dashboard v2.0</title>
     <!-- Version: 2.0 - With Metadata and Audit Tabs -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --bg: #eef3f8;
+            --panel: #ffffff;
+            --panel-soft: #f7f9fc;
+            --ink: #1f2d3d;
+            --muted: #6b7d90;
+            --brand: #0b6fbf;
+            --brand-dark: #0a5f9f;
+            --line: #d8e2ee;
+            --success: #1f9d5b;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -1706,9 +1721,9 @@ DYNAMIC_DASHBOARD_HTML = '''
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-            color: #000000;
+            font-family: 'Manrope', 'Trebuchet MS', sans-serif;
+            background: radial-gradient(circle at 15% 10%, #f6fbff 0%, var(--bg) 45%, #e7eef6 100%);
+            color: var(--ink);
             line-height: 1.4;
             height: 100vh;
             overflow: hidden;
@@ -1720,7 +1735,7 @@ DYNAMIC_DASHBOARD_HTML = '''
             max-width: 100%;
             margin: 0;
             padding: 0;
-            background: rgba(255, 255, 255, 0.95);
+            background: rgba(255, 255, 255, 0.92);
             height: 100vh;
             display: flex;
             flex-direction: column;
@@ -1729,42 +1744,44 @@ DYNAMIC_DASHBOARD_HTML = '''
         }
         
         .header {
-            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            background: linear-gradient(115deg, #223246 0%, #2f4760 55%, #305578 100%);
             color: #ffffff;
-            padding: 20px;
+            padding: 16px 20px 14px;
             text-align: center;
-            border-bottom: 3px solid #3498db;
+            border-bottom: 2px solid #4ea1e8;
             flex-shrink: 0;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 16px rgba(11, 36, 62, 0.2);
         }
         
         .header h1 {
-            font-size: 2rem;
-            font-weight: 600;
-            margin-bottom: 8px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            font-size: 1.7rem;
+            font-weight: 800;
+            margin-bottom: 6px;
+            letter-spacing: 0.4px;
+            text-shadow: 0 2px 8px rgba(0,0,0,0.28);
         }
 
         .header h1 .version-tag {
-            font-size: 0.5em;
-            vertical-align: sub;
-            opacity: 0.9;
-            margin-left: 4px;
+            font-size: 0.42em;
+            vertical-align: baseline;
+            opacity: 0.82;
+            margin-left: 2px;
+            font-weight: 700;
         }
         
         .header p {
-            font-size: 1rem;
-            opacity: 0.9;
+            font-size: 0.95rem;
+            opacity: 0.86;
             margin: 0;
-            font-weight: 300;
+            font-weight: 500;
         }
         
         .command-panel {
-            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-            border-bottom: 1px solid #e9ecef;
-            padding: 25px;
+            background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+            border-bottom: 1px solid var(--line);
+            padding: 18px 24px 16px;
             flex-shrink: 0;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 8px rgba(16, 40, 64, 0.06);
         }
         
         .command-panel h3 {
@@ -1790,15 +1807,15 @@ DYNAMIC_DASHBOARD_HTML = '''
         
         .command-input input {
             flex: 1;
-            padding: 15px 20px;
-            border: 2px solid #e9ecef;
+            padding: 13px 16px;
+            border: 1px solid var(--line);
             border-radius: 12px;
-            font-size: 1rem;
+            font-size: 0.97rem;
             background: #ffffff;
-            color: #2c3e50;
+            color: var(--ink);
             outline: none;
             transition: all 0.3s ease;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            box-shadow: inset 0 1px 1px rgba(16, 40, 64, 0.03);
         }
         
         .command-input input:focus {
@@ -1808,16 +1825,16 @@ DYNAMIC_DASHBOARD_HTML = '''
         }
         
         .command-input button {
-            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            background: linear-gradient(135deg, var(--brand) 0%, var(--brand-dark) 100%);
             color: #ffffff;
             border: none;
-            padding: 15px 30px;
+            padding: 13px 26px;
             border-radius: 12px;
-            font-size: 1rem;
+            font-size: 0.96rem;
             cursor: pointer;
-            font-weight: 600;
+            font-weight: 700;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+            box-shadow: 0 6px 14px rgba(11, 111, 191, 0.28);
         }
         
         .command-input button:hover {
@@ -1840,16 +1857,16 @@ DYNAMIC_DASHBOARD_HTML = '''
         }
         
         .quick-cmd {
-            background: linear-gradient(135deg, #ffffff 0%, #ecf0f1 100%);
-            border: 2px solid #bdc3c7;
-            padding: 10px 18px;
-            border-radius: 25px;
+            background: #ffffff;
+            border: 1px solid #cfd9e5;
+            padding: 9px 15px;
+            border-radius: 18px;
             cursor: pointer;
-            font-size: 0.9rem;
-            color: #2c3e50;
+            font-size: 0.86rem;
+            color: #2b3e52;
             transition: all 0.3s ease;
-            font-weight: 500;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            font-weight: 600;
+            box-shadow: 0 2px 6px rgba(31, 45, 61, 0.08);
         }
         
         .quick-cmd:hover {
@@ -1905,8 +1922,8 @@ DYNAMIC_DASHBOARD_HTML = '''
         .phase-item {
             flex: 1;
             min-width: 120px;
-            background: linear-gradient(135deg, #ecf0f1 0%, #bdc3c7 100%);
-            border: 2px solid #95a5a6;
+            background: linear-gradient(180deg, #f4f7fb 0%, #e8eef6 100%);
+            border: 1px solid #c9d6e6;
             border-radius: 10px;
             padding: 12px 8px;
             text-align: center;
@@ -1981,11 +1998,11 @@ DYNAMIC_DASHBOARD_HTML = '''
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 15px 25px;
-            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-            border-bottom: 1px solid #e9ecef;
+            padding: 12px 24px;
+            background: #f8fbff;
+            border-bottom: 1px solid var(--line);
             flex-shrink: 0;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            box-shadow: 0 1px 6px rgba(16, 40, 64, 0.05);
         }
         
         .status-indicator {
@@ -2042,12 +2059,12 @@ DYNAMIC_DASHBOARD_HTML = '''
         }
         
         .result-item {
-            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            background: linear-gradient(180deg, #ffffff 0%, #f9fbff 100%);
             border-radius: 15px;
-            padding: 25px;
-            margin: 15px 0;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
-            border: 1px solid rgba(255,255,255,0.8);
+            padding: 20px;
+            margin: 14px 0;
+            box-shadow: 0 8px 24px rgba(16, 40, 64, 0.08);
+            border: 1px solid #e6edf6;
             backdrop-filter: blur(10px);
             transition: all 0.3s ease;
         }
@@ -2425,35 +2442,32 @@ DYNAMIC_DASHBOARD_HTML = '''
         /* Badge Icons Styles */
         .info-badges {
             position: fixed;
-            top: 100px;
+            top: 82px;
             right: 20px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
             z-index: 9999;
         }
         
         .info-badge {
-            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-            border: 2px solid #3498db;
-            border-radius: 50px;
-            padding: 12px 18px;
+            background: linear-gradient(180deg, #ffffff 0%, #f7fbff 100%);
+            border: 1px solid #c8d6e8;
+            border-radius: 16px;
+            padding: 9px 14px;
             cursor: pointer;
             display: flex;
             align-items: center;
-            gap: 10px;
-            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+            gap: 8px;
+            box-shadow: 0 6px 14px rgba(16, 40, 64, 0.11);
             transition: all 0.3s ease;
-            min-width: 140px;
-            /* Debug styles */
-            background: white !important;
-            border: 3px solid #e74c3c !important;
+            min-width: 108px;
         }
         
         .info-badge:hover {
-            transform: translateX(-5px);
-            box-shadow: 0 6px 25px rgba(52, 152, 219, 0.5);
-            border-color: #2980b9;
+            transform: translateX(-3px);
+            box-shadow: 0 8px 20px rgba(16, 40, 64, 0.17);
+            border-color: #7ca7cf;
         }
         
         .info-badge.metadata {
@@ -2491,17 +2505,18 @@ DYNAMIC_DASHBOARD_HTML = '''
         }
         
         .badge-label {
-            font-size: 0.75rem;
-            color: #7f8c8d;
-            font-weight: 600;
+            font-size: 0.68rem;
+            color: #5f7082;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
         
         .badge-count {
-            font-size: 1.3rem;
+            font-size: 1.55rem;
             font-weight: 700;
             color: #2c3e50;
+            line-height: 1;
         }
         
         /* Popup Modal Styles */
@@ -2711,22 +2726,22 @@ DYNAMIC_DASHBOARD_HTML = '''
         .dashboard-tabs {
             display: flex;
             gap: 10px;
-            padding: 15px 20px;
-            background: linear-gradient(135deg, #34495e 0%, #2c3e50 100%);
-            border-bottom: 2px solid #3498db;
+            padding: 10px 14px;
+            background: linear-gradient(180deg, #2e4660 0%, #2a3f55 100%);
+            border-bottom: 1px solid #5c7d9f;
             flex-shrink: 0;
         }
         
         .tab-button {
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.08);
             color: #ffffff;
-            border: 2px solid transparent;
-            padding: 10px 24px;
+            border: 1px solid transparent;
+            padding: 8px 16px;
             border-radius: 8px;
-            font-size: 0.95rem;
+            font-size: 0.88rem;
             cursor: pointer;
             transition: all 0.3s ease;
-            font-weight: 600;
+            font-weight: 700;
         }
         
         .tab-button:hover {
@@ -2996,6 +3011,10 @@ DYNAMIC_DASHBOARD_HTML = '''
             .header h1 {
                 font-size: 1.6rem;
             }
+
+            .header h1 .version-tag {
+                font-size: 0.5em;
+            }
             
             .command-panel {
                 padding: 20px;
@@ -3006,7 +3025,7 @@ DYNAMIC_DASHBOARD_HTML = '''
 <body>
     <div class="container">
         <header class="header">
-            <h1>AA GCP<span class="version-tag">202</span></h1>
+            <h1>AA GCP <span class="version-tag">202</span></h1>
             <p>Natural language governance automation</p>
         </header>
         
