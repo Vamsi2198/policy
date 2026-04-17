@@ -1241,7 +1241,7 @@ def get_policies():
                 'piiTypes': [classification],
                 'confidence': confidence or 0.0,
                 'createdAt': timestamp,
-                'appliedBy': 'AtlanActionsEngine'
+                'appliedBy': 'AA GCPEngine'
             })
         
         return jsonify(policies)
@@ -1575,7 +1575,7 @@ def process_s3_data():
     if not actions_engine:
         if not init_engine():
             return jsonify({
-                'error': 'Atlan Actions Engine not available',
+                'error': 'AA GCP Engine not available',
                 'status': 'error'
             }), 500
     
@@ -1696,7 +1696,7 @@ DYNAMIC_DASHBOARD_HTML = '''
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
-    <title>Atlan Actions - Dynamic Policy Dashboard v2.0</title>
+    <title>AA GCP - Dynamic Policy Dashboard v2.0</title>
     <!-- Version: 2.0 - With Metadata and Audit Tabs -->
     <style>
         * {
@@ -1743,6 +1743,13 @@ DYNAMIC_DASHBOARD_HTML = '''
             font-weight: 600;
             margin-bottom: 8px;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header h1 .version-tag {
+            font-size: 0.5em;
+            vertical-align: sub;
+            opacity: 0.9;
+            margin-left: 4px;
         }
         
         .header p {
@@ -2999,7 +3006,7 @@ DYNAMIC_DASHBOARD_HTML = '''
 <body>
     <div class="container">
         <header class="header">
-            <h1>⚡Governance Actions Dashboard</h1>
+            <h1>AA GCP<span class="version-tag">202</span></h1>
             <p>Natural language governance automation</p>
         </header>
         
@@ -3049,14 +3056,14 @@ DYNAMIC_DASHBOARD_HTML = '''
             </div>
             
             <div class="quick-commands">
-                <span class="quick-cmd" onclick="setCommand('mask pii in customers table')">
+                <span class="quick-cmd" onclick="setCommand('mask Salary in employees table for analyst role')">
+                    Mask Salary in Employees
+                </span>
+                <span class="quick-cmd" onclick="setCommand('mask pii in customers table for analyst role')">
                     Mask PII in Customers
                 </span>
-                <span class="quick-cmd" onclick="setCommand('automatically discover and protect sensitive data')">
-                    Auto Discovery
-                </span>
-                <span class="quick-cmd" onclick="setCommand('generate airflow dag for email masking')">
-                    Generate Airflow DAG
+                <span class="quick-cmd" onclick="setCommand('mask email and phone number in customers table for non admin users')">
+                    Mask for non admin users
                 </span>
                 <span class="quick-cmd" onclick="processS3Command()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: 600;">
                     🗂️ Process S3 Data
@@ -3144,7 +3151,7 @@ DYNAMIC_DASHBOARD_HTML = '''
         <!-- Metadata Tab -->
         <div id="metadataTab" class="tab-content" style="display: none;">
             <div class="tab-section">
-                <h2>📝 Policy Changes (Atlan Metadata)</h2>
+                <h2>📝 Policy Changes (AA GCP Metadata)</h2>
                 <div class="stats-row">
                     <div class="stat-card">
                         <h4>Total Changes</h4>
@@ -3168,7 +3175,7 @@ DYNAMIC_DASHBOARD_HTML = '''
                                 <th>Change Type</th>
                                 <th>Affected Assets</th>
                                 <th>User</th>
-                                <th>Atlan GUID</th>
+                                <th>AA GCP GUID</th>
                             </tr>
                         </thead>
                         <tbody id="policyChangesBody">
@@ -3295,7 +3302,7 @@ DYNAMIC_DASHBOARD_HTML = '''
         <div class="popup-modal" id="metadataPopup">
             <div class="popup-content">
                 <div class="popup-header metadata">
-                    <h2>📊 Atlan Metadata Overview</h2>
+                    <h2>📊 AA GCP Metadata Overview</h2>
                     <button class="popup-close" onclick="closeMetadataPopup()">×</button>
                 </div>
                 <div class="popup-body">
@@ -3845,7 +3852,7 @@ DYNAMIC_DASHBOARD_HTML = '''
                     statusElement.innerHTML = '✅ Actions Engine: Ready';
                     statusElement.style.color = '#28a745';
                 } else {
-                    statusElement.innerHTML = '⚠️ Atlan Actions Engine: Limited Mode';
+                    statusElement.innerHTML = '⚠️ AA GCP Engine: Limited Mode';
                     statusElement.style.color = '#ffc107';
                 }
                 
@@ -4536,7 +4543,7 @@ DYNAMIC_DASHBOARD_HTML = '''
                     
                     if (execute.atlan_sync_status && execute.atlan_sync_status.enabled) {
                         const syncedItems = execute.atlan_sync_status.synced_items?.length || 0;
-                        html += `<p><strong>Atlan Sync:</strong> ✅ ${syncedItems} items synced</p>`;
+                        html += `<p><strong>AA GCP Sync:</strong> ✅ ${syncedItems} items synced</p>`;
                     }
                 }
             }
