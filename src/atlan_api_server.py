@@ -34,6 +34,203 @@ def make_json_safe(value):
         return make_json_safe(vars(value))
     return value
 
+
+def calculate_estimated_time(rows_affected, columns_affected, sql_commands=None):
+    """
+    Calculate estimated execution time dynamically based on query metrics.
+    
+    Args:
+        rows_affected: Number of rows that will be affected
+        columns_affected: Number of columns that will be affected
+        sql_commands: List of SQL commands to analyze complexity
+    
+    Returns:
+        float: Estimated time in seconds
+    """
+    # Base time: 0.5 seconds for initialization
+    base_time = 0.5
+    
+    # Time per 10,000 rows: 0.1 seconds (scales logarithmically)
+    row_time = 0
+    if rows_affected > 0:
+        # Use logarithmic scaling to avoid extreme values for large datasets
+        import math
+        row_time = math.log10(rows_affected + 1) * 0.15
+    
+    # Time per column: 0.05 seconds
+    column_time = columns_affected * 0.05
+    
+    # SQL complexity bonus: estimate from command count and complexity
+    sql_time = 0
+    if sql_commands and len(sql_commands) > 0:
+        # Each SQL command adds 0.2 seconds
+        sql_time = len(sql_commands) * 0.2
+        
+        # Check for complex operations (ALTER TABLE, CREATE POLICY, etc.)
+        for cmd in sql_commands:
+            if isinstance(cmd, str):
+                cmd_upper = cmd.upper()
+                if 'ALTER TABLE' in cmd_upper or 'ALTER COLUMN' in cmd_upper:
+                    sql_time += 0.5
+                elif 'CREATE POLICY' in cmd_upper or 'CREATE MASKING' in cmd_upper:
+                    sql_time += 0.3
+                elif 'UPDATE' in cmd_upper or 'DELETE' in cmd_upper:
+                    sql_time += 0.4
+                elif 'INSERT' in cmd_upper:
+                    sql_time += 0.2
+    
+    # Total estimated time (add minimum 0.2s for small operations)
+    total_time = max(0.2, base_time + row_time + column_time + sql_time)
+    
+    # Cap at reasonable maximum (300 seconds for very large operations)
+    return min(total_time, 300.0)
+
+
+def extract_sql_metrics(sql_commands, rows_affected=0, columns_affected=0, sample_data=None):
+    """
+    Extract and refine metrics from SQL commands and actual sample data.
+    
+    Args:
+        sql_commands: List of SQL commands
+        rows_affected: Current rows_affected estimate
+        columns_affected: Current columns_affected estimate
+        sample_data: Dictionary with sample data (e.g., {'EMPLOYEES': [row1, row2...], 'CUSTOMERS': [row1, row2...]})
+    
+    Returns:
+        tuple: (refined_rows_affected, refined_columns_affected)
+    """
+    import re
+    
+    if not sql_commands:
+        return rows_affected, columns_affected
+    
+    # STEP 1: Extract table names from SQL commands
+    queried_tables = set()
+    for cmd in sql_commands:
+        if not isinstance(cmd, str):
+            continue
+        
+        cmd_upper = cmd.upper()
+        
+        # Extract table names from various SQL patterns
+        # Pattern: ALTER TABLE DEMO_SCHEMA."CUSTOMERS"
+        table_matches = re.findall(r'(?:ALTER\s+TABLE|FROM|JOIN|UPDATE|INTO)\s+(?:[\w]+\.)?["\']?(\w+)["\']?', cmd_upper)
+        queried_tables.update([t for t in table_matches if t not in ['TABLE', 'COLUMN']])
+    
+    print(f"[DEBUG] Extracted table names from SQL: {queried_tables}")
+    
+    # STEP 2: Count actual rows from sample_data if available
+    if sample_data and isinstance(sample_data, dict) and len(sample_data) > 0:
+        print(f"[DEBUG] sample_data available with tables: {list(sample_data.keys())}")
+        
+        # Try to match queried table with sample_data keys
+        matched_rows = 0
+        matched_table = None
+        
+        # First priority: exact match with queried table
+        for queried_table in queried_tables:
+            if queried_table in sample_data and isinstance(sample_data[queried_table], list):
+                matched_rows = len(sample_data[queried_table])
+                matched_table = queried_table
+                print(f"[DEBUG] ✓ Matched queried table '{queried_table}' to sample_data: {matched_rows} rows")
+                break
+        
+        # Second priority: look for any list in sample_data (case-insensitive match)
+        if matched_rows == 0:
+            for table_key, data in sample_data.items():
+                if isinstance(data, list) and len(data) > 0:
+                    # Check if table_key matches any queried table (case-insensitive)
+                    if table_key.upper() in [t.upper() for t in queried_tables]:
+                        matched_rows = len(data)
+                        matched_table = table_key
+                        print(f"[DEBUG] ✓ Case-insensitive match: '{table_key}' = {matched_rows} rows")
+                        break
+        
+        # Third priority: just use any sample data (last resort)
+        if matched_rows == 0:
+            for table_key, data in sample_data.items():
+                if isinstance(data, list) and len(data) > 0:
+                    matched_rows = len(data)
+                    matched_table = table_key
+                    print(f"[DEBUG] ⚠ Using fallback sample_data from '{table_key}': {matched_rows} rows")
+                    break
+        
+        # Apply the actual count
+        if matched_rows > 0:
+            rows_affected = matched_rows
+            print(f"[DEBUG] ✅ Set rows_affected from actual sample data: {rows_affected}")
+    
+    # STEP 3: Detect actual columns affected from SQL commands
+    affected_columns_set = set()
+    
+    for cmd in sql_commands:
+        if not isinstance(cmd, str):
+            continue
+        
+        cmd_upper = cmd.upper()
+        
+        # Pattern 1: ALTER TABLE ... ALTER COLUMN "COLUMNNAME" SET MASKING POLICY
+        # Example: ALTER TABLE DEMO_SCHEMA."CUSTOMERS" ALTER COLUMN "EMAIL" SET MASKING POLICY...
+        col_pattern1 = re.findall(r'ALTER\s+COLUMN\s+"([^"]+)"', cmd)
+        if col_pattern1:
+            affected_columns_set.update(col_pattern1)
+            print(f"[DEBUG] Pattern 1 (ALTER COLUMN): Found {col_pattern1}")
+        
+        # Pattern 2: ALTER TABLE ... MODIFY COLUMN ... SET MASKING
+        col_pattern2 = re.findall(r'MODIFY\s+COLUMN\s+(\w+)', cmd_upper)
+        if col_pattern2:
+            affected_columns_set.update(col_pattern2)
+            print(f"[DEBUG] Pattern 2 (MODIFY COLUMN): Found {col_pattern2}")
+        
+        # Pattern 3: Column in quotes for JSON/structured formats
+        col_pattern3 = re.findall(r'"([A-Z_]+)"\s+(?:UNSET|SET)\s+MASKING', cmd)
+        if col_pattern3:
+            affected_columns_set.update(col_pattern3)
+            print(f"[DEBUG] Pattern 3 (quoted columns): Found {col_pattern3}")
+        
+        # Pattern 4: SET MASKING POLICY followed by column name
+        col_pattern4 = re.findall(r'(?:UNSET|SET)\s+MASKING\s+POLICY[^;]*ALTER\s+COLUMN\s+"([^"]+)"', cmd)
+        if col_pattern4:
+            affected_columns_set.update(col_pattern4)
+            print(f"[DEBUG] Pattern 4 (UNSET/SET MASKING): Found {col_pattern4}")
+    
+    if affected_columns_set:
+        columns_affected = len(affected_columns_set)
+        print(f"[DEBUG] ✅ Detected {columns_affected} columns affected: {sorted(affected_columns_set)}")
+    else:
+        print(f"[DEBUG] ⚠ No columns detected from SQL patterns")
+    
+    # STEP 4: Fallback - if still no rows detected, try table name estimation
+    if rows_affected == 0 or rows_affected == 1:  # 1 is the max() minimum from previous code
+        print(f"[DEBUG] rows_affected is {rows_affected}, attempting table estimation...")
+        for cmd in sql_commands:
+            if not isinstance(cmd, str):
+                continue
+            
+            cmd_upper = cmd.upper()
+            
+            # Try to extract table name
+            table_match = re.search(r'(?:ALTER\s+TABLE|FROM|UPDATE)\s+(?:[\w]+\.)?["\']?(\w+)["\']?', cmd_upper)
+            if table_match:
+                table_name = table_match.group(1).upper()
+                if table_name not in ['TABLE', 'COLUMN']:
+                    table_row_estimates = {
+                        'EMPLOYEE': 1000,
+                        'EMPLOYEE_DATA': 1000,
+                        'CUSTOMERS': 5000,
+                        'ORDERS': 10000,
+                        'PRODUCTS': 500,
+                        'TRANSACTIONS': 50000,
+                    }
+                    estimated = table_row_estimates.get(table_name, 1000)
+                    if rows_affected <= 1:
+                        rows_affected = estimated
+                        print(f"[DEBUG] Estimated rows from table '{table_name}': {rows_affected}")
+                    break
+    
+    print(f"[DEBUG] Final extracted metrics: rows_affected={rows_affected}, columns_affected={columns_affected}")
+    return max(1, rows_affected), max(1, columns_affected)
+
 # For ngrok tunneling
 try:
     from pyngrok import ngrok
@@ -216,6 +413,7 @@ def process_command():
             rows_affected = 0
             columns_affected = 0
             affected_columns_list = []
+            sample_data = None  # Will be populated from observe phase
             
             if isinstance(original_results, dict) and 'phases' in original_results:
                 plan_phase = original_results['phases'].get('plan') or original_results['phases'].get('PLAN')
@@ -231,7 +429,7 @@ def process_command():
                     
                     print(f"[DEBUG] Plan phase - rows: {rows_affected}, columns: {columns_affected}, affected_columns_list: {affected_columns_list}")
                 
-                # Also check observe phase for target entities count
+                # Also check observe phase for target entities count and sample data
                 observe_phase = original_results['phases'].get('observe') or original_results['phases'].get('OBSERVE')
                 if observe_phase and isinstance(observe_phase, dict):
                     target_entities = observe_phase.get('target_entities', [])
@@ -239,27 +437,17 @@ def process_command():
                     obs_rows = observe_phase.get('rows_affected') or observe_phase.get('row_count')
                     if obs_rows:
                         rows_affected = obs_rows
-                    print(f"[DEBUG] Observe phase - target_entities: {target_entities}, rows: {obs_rows}")
-                
-                # Check analyze phase for PII findings count
-                analyze_phase = original_results['phases'].get('analyze') or original_results['phases'].get('ANALYZE')
-                if analyze_phase and isinstance(analyze_phase, dict):
-                    pii_findings = analyze_phase.get('pii_findings', [])
-                    if not columns_affected and pii_findings:
-                        columns_affected = len(pii_findings)
-                        affected_columns_list = [f['column'] for f in pii_findings if 'column' in f]
-                    print(f"[DEBUG] Analyze phase - pii_findings count: {len(pii_findings)}")
+                    
+                    # Extract sample_data for actual row counting
+                    sample_data = observe_phase.get('sample_data', None)
+                    print(f"[DEBUG] Observe phase - target_entities: {target_entities}, rows: {obs_rows}, has_sample_data: {sample_data is not None}")
             
-            # Fallback: try to get from top-level proposed_changes
-            if rows_affected == 0:
-                rows_affected = original_results.get('proposed_changes', {}).get('affected_rows', 0)
-            if columns_affected == 0:
-                proposed_cols = original_results.get('proposed_changes', {}).get('columns_affected', [])
-                columns_affected = len(proposed_cols) if proposed_cols else 0
-                if proposed_cols and not affected_columns_list:
-                    affected_columns_list = proposed_cols
+            # Refine metrics based on SQL commands AND actual sample data
+            rows_affected, columns_affected = extract_sql_metrics(sql_commands, rows_affected, columns_affected, sample_data)
             
-            print(f"[DEBUG] Final values - rows_affected: {rows_affected}, columns_affected: {columns_affected}")
+            # Calculate estimated time dynamically
+            estimated_time = calculate_estimated_time(rows_affected, columns_affected, sql_commands)
+            print(f"[DEBUG] Calculated estimated_time: {estimated_time}s")
 
             safe_original_results = make_json_safe(original_results) if original_results is not None else None
             
@@ -282,7 +470,7 @@ def process_command():
                                 'rows_affected': rows_affected,
                                 'columns_affected': columns_affected,
                                 'risk_level': 'LOW',
-                                'estimated_time': 4.0,
+                                'estimated_time': estimated_time,
                                 'sql_commands': sql_commands
                             }
                         }
@@ -307,6 +495,30 @@ def process_command():
         else:
             # Fallback: return a response waiting for approval at stage 4
             print(f"[DEBUG] Using fallback mode for response")
+            
+            # Use default fallback values but calculate estimated time
+            fallback_rows_affected = 5000
+            fallback_columns_affected = 3
+            fallback_sql_commands = [
+                "CREATE OR REPLACE MASKING POLICY salary_mask_analyst AS (val NUMBER) RETURNS NUMBER -> CASE WHEN CURRENT_ROLE() IN ('HR_ROLE') THEN val ELSE NULL END;",
+                "ALTER TABLE PUBLIC.EMPLOYEE_DATA MODIFY COLUMN SALARY SET MASKING POLICY salary_mask_analyst;"
+            ]
+            
+            # Refine and calculate estimated time for fallback
+            fallback_rows_affected, fallback_columns_affected = extract_sql_metrics(
+                fallback_sql_commands, 
+                fallback_rows_affected, 
+                fallback_columns_affected,
+                sample_data=None
+            )
+            fallback_estimated_time = calculate_estimated_time(
+                fallback_rows_affected, 
+                fallback_columns_affected, 
+                fallback_sql_commands
+            )
+            
+            print(f"[DEBUG] Fallback mode - rows: {fallback_rows_affected}, columns: {fallback_columns_affected}, time: {fallback_estimated_time}s")
+            
             results = {
                 'status': 'pending_approval',
                 'command': command,
@@ -322,14 +534,11 @@ def process_command():
                         'approval_details': {
                             'pending_approval': True,
                             'simulation_details': {
-                                'rows_affected': 5000,
-                                'columns_affected': 3,
+                                'rows_affected': fallback_rows_affected,
+                                'columns_affected': fallback_columns_affected,
                                 'risk_level': 'LOW',
-                                'estimated_time': 4.0,
-                                'sql_commands': [
-                                    "CREATE OR REPLACE MASKING POLICY salary_mask_analyst AS (val NUMBER) RETURNS NUMBER -> CASE WHEN CURRENT_ROLE() IN ('HR_ROLE') THEN val ELSE NULL END;",
-                                    "ALTER TABLE PUBLIC.EMPLOYEE_DATA MODIFY COLUMN SALARY SET MASKING POLICY salary_mask_analyst;"
-                                ]
+                                'estimated_time': fallback_estimated_time,
+                                'sql_commands': fallback_sql_commands
                             }
                         }
                     },
