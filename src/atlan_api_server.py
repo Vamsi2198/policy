@@ -86,6 +86,72 @@ def calculate_estimated_time(rows_affected, columns_affected, sql_commands=None)
     return min(total_time, 300.0)
 
 
+def detect_intent_from_command(command):
+    """Use simple heuristics to infer intent from the user command."""
+    if not command or not isinstance(command, str):
+        return 'UNKNOWN'
+
+    lower_cmd = command.lower()
+    if any(keyword in lower_cmd for keyword in ['mask ', 'masking', 'apply mask', 'apply masking', 'set masking']):
+        return 'MASK'
+    if any(keyword in lower_cmd for keyword in ['unmask', 'remove mask', 'unset masking', 'drop masking']):
+        return 'UNMASK'
+    if any(keyword in lower_cmd for keyword in ['audit', 'log', 'review', 'show policy', 'show policies']):
+        return 'AUDIT'
+    if any(keyword in lower_cmd for keyword in ['show', 'view', 'list', 'display']):
+        return 'READ'
+    return 'UNKNOWN'
+
+
+def extract_target_entities_from_command(command):
+    """Extract probable table names from the user command."""
+    if not command or not isinstance(command, str):
+        return []
+
+    import re
+    matches = re.findall(r'(?:table|from|in)\s+"?([A-Z0-9_\.]+)"?', command, flags=re.IGNORECASE)
+    entities = []
+    for match in matches:
+        normalized = match.strip().upper()
+        if normalized and normalized not in entities:
+            entities.append(normalized)
+    return entities
+
+
+def build_observe_metadata(observe_phase, command=None):
+    """Build the observe phase metadata for UI display."""
+    intent = 'UNKNOWN'
+    confidence = 0.0
+    target_entities = []
+
+    if observe_phase and isinstance(observe_phase, dict):
+        intent = observe_phase.get('intent') or observe_phase.get('intent_detected') or intent
+        try:
+            confidence = float(observe_phase.get('confidence', 0.0) or 0.0)
+        except Exception:
+            confidence = 0.0
+
+        raw_entities = observe_phase.get('target_entities') or observe_phase.get('target_entity') or []
+        if isinstance(raw_entities, str):
+            target_entities = [raw_entities]
+        elif isinstance(raw_entities, list):
+            target_entities = [str(ent).upper() for ent in raw_entities if ent]
+
+    if not target_entities and command:
+        target_entities = extract_target_entities_from_command(command)
+
+    if not intent or intent == 'UNKNOWN':
+        intent = detect_intent_from_command(command)
+
+    return {
+        'status': 'completed',
+        'message': 'Schema analyzed',
+        'intent': intent,
+        'confidence': confidence,
+        'target_entities': target_entities
+    }
+
+
 def extract_sql_metrics(sql_commands, rows_affected=0, columns_affected=0, sample_data=None):
     """
     Extract and refine metrics from SQL commands and actual sample data.
@@ -139,7 +205,6 @@ def extract_sql_metrics(sql_commands, rows_affected=0, columns_affected=0, sampl
         if matched_rows == 0:
             for table_key, data in sample_data.items():
                 if isinstance(data, list) and len(data) > 0:
-                    # Check if table_key matches any queried table (case-insensitive)
                     if table_key.upper() in [t.upper() for t in queried_tables]:
                         matched_rows = len(data)
                         matched_table = table_key
@@ -155,7 +220,6 @@ def extract_sql_metrics(sql_commands, rows_affected=0, columns_affected=0, sampl
                     print(f"[DEBUG] ⚠ Using fallback sample_data from '{table_key}': {matched_rows} rows")
                     break
         
-        # Apply the actual count
         if matched_rows > 0:
             rows_affected = matched_rows
             print(f"[DEBUG] ✅ Set rows_affected from actual sample data: {rows_affected}")
@@ -169,26 +233,21 @@ def extract_sql_metrics(sql_commands, rows_affected=0, columns_affected=0, sampl
         
         cmd_upper = cmd.upper()
         
-        # Pattern 1: ALTER TABLE ... ALTER COLUMN "COLUMNNAME" SET MASKING POLICY
-        # Example: ALTER TABLE DEMO_SCHEMA."CUSTOMERS" ALTER COLUMN "EMAIL" SET MASKING POLICY...
         col_pattern1 = re.findall(r'ALTER\s+COLUMN\s+"([^"]+)"', cmd)
         if col_pattern1:
             affected_columns_set.update(col_pattern1)
             print(f"[DEBUG] Pattern 1 (ALTER COLUMN): Found {col_pattern1}")
         
-        # Pattern 2: ALTER TABLE ... MODIFY COLUMN ... SET MASKING
         col_pattern2 = re.findall(r'MODIFY\s+COLUMN\s+(\w+)', cmd_upper)
         if col_pattern2:
             affected_columns_set.update(col_pattern2)
             print(f"[DEBUG] Pattern 2 (MODIFY COLUMN): Found {col_pattern2}")
         
-        # Pattern 3: Column in quotes for JSON/structured formats
         col_pattern3 = re.findall(r'"([A-Z_]+)"\s+(?:UNSET|SET)\s+MASKING', cmd)
         if col_pattern3:
             affected_columns_set.update(col_pattern3)
             print(f"[DEBUG] Pattern 3 (quoted columns): Found {col_pattern3}")
         
-        # Pattern 4: SET MASKING POLICY followed by column name
         col_pattern4 = re.findall(r'(?:UNSET|SET)\s+MASKING\s+POLICY[^;]*ALTER\s+COLUMN\s+"([^"]+)"', cmd)
         if col_pattern4:
             affected_columns_set.update(col_pattern4)
@@ -201,7 +260,7 @@ def extract_sql_metrics(sql_commands, rows_affected=0, columns_affected=0, sampl
         print(f"[DEBUG] ⚠ No columns detected from SQL patterns")
     
     # STEP 4: Fallback - if still no rows detected, try table name estimation
-    if rows_affected == 0 or rows_affected == 1:  # 1 is the max() minimum from previous code
+    if rows_affected == 0 or rows_affected == 1:
         print(f"[DEBUG] rows_affected is {rows_affected}, attempting table estimation...")
         for cmd in sql_commands:
             if not isinstance(cmd, str):
@@ -209,7 +268,6 @@ def extract_sql_metrics(sql_commands, rows_affected=0, columns_affected=0, sampl
             
             cmd_upper = cmd.upper()
             
-            # Try to extract table name
             table_match = re.search(r'(?:ALTER\s+TABLE|FROM|UPDATE)\s+(?:[\w]+\.)?["\']?(\w+)["\']?', cmd_upper)
             if table_match:
                 table_name = table_match.group(1).upper()
@@ -414,6 +472,7 @@ def process_command():
             columns_affected = 0
             affected_columns_list = []
             sample_data = None  # Will be populated from observe phase
+            observe_phase = None
             
             if isinstance(original_results, dict) and 'phases' in original_results:
                 plan_phase = original_results['phases'].get('plan') or original_results['phases'].get('PLAN')
@@ -432,7 +491,6 @@ def process_command():
                 # Also check observe phase for target entities count and sample data
                 observe_phase = original_results['phases'].get('observe') or original_results['phases'].get('OBSERVE')
                 if observe_phase and isinstance(observe_phase, dict):
-                    target_entities = observe_phase.get('target_entities', [])
                     # Don't hard-code! Only use if observe phase explicitly provides row count
                     obs_rows = observe_phase.get('rows_affected') or observe_phase.get('row_count')
                     if obs_rows:
@@ -440,7 +498,10 @@ def process_command():
                     
                     # Extract sample_data for actual row counting
                     sample_data = observe_phase.get('sample_data', None)
-                    print(f"[DEBUG] Observe phase - target_entities: {target_entities}, rows: {obs_rows}, has_sample_data: {sample_data is not None}")
+                    print(f"[DEBUG] Observe phase - target_entities: {observe_phase.get('target_entities', [])}, rows: {obs_rows}, has_sample_data: {sample_data is not None}")
+                
+            # Build observe metadata for the UI
+            observe_metadata = build_observe_metadata(observe_phase, command)
             
             # Refine metrics based on SQL commands AND actual sample data
             rows_affected, columns_affected = extract_sql_metrics(sql_commands, rows_affected, columns_affected, sample_data)
@@ -458,7 +519,7 @@ def process_command():
                 'current_phase': 4,
                 'original_response': safe_original_results,  # Store safe version for JSON serialization
                 'phases': {
-                    'observe': {'status': 'completed', 'message': 'Schema analyzed'},
+                    'observe': observe_metadata,
                     'analyze': {'status': 'completed', 'message': 'PII detected'},
                     'plan': {'status': 'completed', 'message': 'Policy created'},
                     'simulate': {
@@ -519,13 +580,15 @@ def process_command():
             
             print(f"[DEBUG] Fallback mode - rows: {fallback_rows_affected}, columns: {fallback_columns_affected}, time: {fallback_estimated_time}s")
             
+            observe_metadata = build_observe_metadata(None, command)
+            
             results = {
                 'status': 'pending_approval',
                 'command': command,
                 'request_id': session_id,
                 'current_phase': 4,
                 'phases': {
-                    'observe': {'status': 'completed', 'message': 'Schema analyzed'},
+                    'observe': observe_metadata,
                     'analyze': {'status': 'completed', 'message': 'PII detected in 3 columns'},
                     'plan': {'status': 'completed', 'message': 'Masking policy created'},
                     'simulate': {
