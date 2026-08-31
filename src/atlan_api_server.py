@@ -12,6 +12,15 @@ import sys
 import json
 import time
 import threading
+
+# Force UTF-8 stdout/stderr on Windows so emoji prints in dependencies don't crash the server.
+if sys.platform == 'win32':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except Exception:
+        os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
+
 from flask import Flask, request, jsonify, render_template_string, Response
 from flask_cors import CORS
 from datetime import datetime
@@ -116,6 +125,118 @@ def extract_target_entities_from_command(command):
         if normalized and normalized not in entities:
             entities.append(normalized)
     return entities
+
+
+def _resolve_table_name(command):
+    """Resolve table name from a natural language command."""
+    candidates = extract_target_entities_from_command(command)
+    if candidates:
+        return candidates[0]
+    # Fallback regex for common patterns
+    import re
+    patterns = [
+        r'\b(?:in|from|on|for)\s+([A-Z0-9_]+)\s+(?:table|for)',
+        r'\b(?:mask|protect|apply)\s+(?:.*?)\s+in\s+([A-Z0-9_]+)',
+        r'\b(?:customers|employees|accounts|orders|transactions|products)\b',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, command, re.IGNORECASE)
+        if match:
+            return match.group(1).upper()
+    return 'EMPLOYEE_DATA'
+
+
+def _extract_columns_from_command(command):
+    """Extract column names mentioned in a command."""
+    import re
+    candidates = []
+    # Common column keywords
+    known = ['salary', 'ssn', 'email', 'phone', 'birthdate', 'address', 'name', 'credit_card']
+    lower_cmd = command.lower()
+    for col in known:
+        if col in lower_cmd:
+            candidates.append(col.upper())
+    return candidates or ['SALARY']
+
+
+def _get_column_type(table, column):
+    """Query Snowflake for the data type of a column."""
+    try:
+        if not (actions_engine and actions_engine.engine and actions_engine.engine.connector):
+            return 'STRING'
+        conn = actions_engine.engine.connector
+        cursor = conn.connection.cursor()
+        cursor.execute(f"DESCRIBE TABLE {table}")
+        rows = cursor.fetchall()
+        for row in rows:
+            # DESCRIBE TABLE returns: name, type, kind, ...
+            if row[0].upper() == column.upper():
+                col_type = row[1].upper()
+                if any(t in col_type for t in ['NUMBER', 'INT', 'FLOAT', 'DECIMAL', 'DOUBLE']):
+                    return 'NUMBER'
+                if any(t in col_type for t in ['DATE', 'TIME', 'TIMESTAMP']):
+                    return 'DATE'
+                return 'STRING'
+        return 'STRING'
+    except Exception as e:
+        print(f"⚠️ Could not determine type for {table}.{column}: {e}")
+        return 'STRING'
+
+
+def _generate_role_based_masking_sql(command):
+    """Generate Snowflake SQL to create and apply role-based masking policies.
+
+    Policy semantics:
+      - ACCOUNTADMIN / SYSADMIN -> see full value
+      - HR_ROLE -> see partial value (last 4 chars or full for salary)
+      - ANALYST_ROLE -> masked (NULL for numbers/dates, '***MASKED***' for strings)
+    """
+    import re
+
+    table = _resolve_table_name(command)
+    # Strip any schema prefix from table name for policy naming
+    base_table = table.split('.')[-1] if '.' in table else table
+    columns = _extract_columns_from_command(command)
+
+    sql_commands = []
+    for column in columns:
+        col_type = _get_column_type(table, column)
+        policy_name = f"{base_table}_{column}_MASK".upper()
+
+        if col_type == 'NUMBER':
+            create_sql = (
+                f"CREATE OR REPLACE MASKING POLICY {policy_name} AS (val NUMBER) RETURNS NUMBER -> "
+                f"CASE "
+                f"WHEN CURRENT_ROLE() IN ('ACCOUNTADMIN', 'SYSADMIN') THEN val "
+                f"WHEN CURRENT_ROLE() IN ('HR_ROLE') THEN val "
+                f"ELSE NULL "
+                f"END;"
+            )
+        elif col_type == 'DATE':
+            create_sql = (
+                f"CREATE OR REPLACE MASKING POLICY {policy_name} AS (val DATE) RETURNS DATE -> "
+                f"CASE "
+                f"WHEN CURRENT_ROLE() IN ('ACCOUNTADMIN', 'SYSADMIN') THEN val "
+                f"WHEN CURRENT_ROLE() IN ('HR_ROLE') THEN DATE_TRUNC('YEAR', val) "
+                f"ELSE NULL "
+                f"END;"
+            )
+        else:
+            create_sql = (
+                f"CREATE OR REPLACE MASKING POLICY {policy_name} AS (val STRING) RETURNS STRING -> "
+                f"CASE "
+                f"WHEN CURRENT_ROLE() IN ('ACCOUNTADMIN', 'SYSADMIN') THEN val "
+                f"WHEN CURRENT_ROLE() IN ('HR_ROLE') THEN "
+                f"  CASE WHEN LENGTH(val) > 4 THEN '***' || RIGHT(val, 4) ELSE '***' END "
+                f"ELSE '***MASKED***' "
+                f"END;"
+            )
+
+        alter_sql = f'ALTER TABLE {table} MODIFY COLUMN "{column}" SET MASKING POLICY {policy_name};'
+        sql_commands.append(create_sql)
+        sql_commands.append(alter_sql)
+
+    return sql_commands
 
 
 def build_observe_metadata(observe_phase, command=None):
@@ -967,10 +1088,11 @@ def continue_execution(session_id):
         session_data = phase_progress[session_id]
         
         # Continue execution using the existing control plane (or fallback)
+        executed_sql_commands = []
         if actions_engine and actions_engine.ai_control_plane:
             results = actions_engine.ai_control_plane.continue_execution_from_phase(session_data, progress_callback=progress_callback)
         else:
-            # Fallback: Simulate execution stages 5-6 with actual response
+            # Fallback: execute SQL commands stored in the session (from plan phase)
             print("⚠️  Running execution in fallback mode...")
             
             # IMPORTANT: Mark phase 4 as completed now that approval has been given
@@ -983,12 +1105,42 @@ def continue_execution(session_id):
                 }
                 print(f"✅ Phase 4 (SIMULATE) marked as completed")
             
+            # Extract SQL commands from the plan phase stored in session data
+            fallback_sql_commands = []
+            original_response = session_data.get('original_response') or {}
+            if isinstance(original_response, dict):
+                plan_phase = original_response.get('phases', {}).get('plan') or original_response.get('phases', {}).get('PLAN') or {}
+                fallback_sql_commands = plan_phase.get('sql_commands', [])
+            
+            # If no SQL commands, derive table/columns from the command and generate role-based masking SQL
+            if not fallback_sql_commands:
+                fallback_sql_commands = _generate_role_based_masking_sql(command)
+                print(f"[DEBUG] Generated role-based masking SQL: {fallback_sql_commands}")
+            
+            # Execute SQL commands via the connector if available
+            execution_success = False
+            execution_error = None
+            if actions_engine and actions_engine.engine and actions_engine.engine.connector:
+                try:
+                    for sql in fallback_sql_commands:
+                        print(f"[EXECUTE] {sql}")
+                        actions_engine.engine.connector.execute(sql)
+                    executed_sql_commands = fallback_sql_commands
+                    execution_success = True
+                    print("✅ Fallback SQL commands executed successfully")
+                except Exception as exec_err:
+                    execution_error = str(exec_err)
+                    print(f"❌ Error executing fallback SQL: {execution_error}")
+            else:
+                execution_error = "No database connector available"
+                print(f"⚠️ {execution_error}")
+            
             # Update phases 5 and 6 to completed
             if session_id in phase_progress:
                 phase_progress[session_id]['phases']['5'] = {
                     'name': 'EXECUTE',
-                    'status': 'completed',
-                    'message': 'Database changes applied',
+                    'status': 'completed' if execution_success else 'error',
+                    'message': 'Database changes applied' if execution_success else f'Execution failed: {execution_error}',
                     'timestamp': datetime.now().isoformat()
                 }
                 phase_progress[session_id]['phases']['6'] = {
@@ -999,13 +1151,13 @@ def continue_execution(session_id):
                 }
             
             results = {
-                'status': 'success',
+                'status': 'success' if execution_success else 'error',
                 'phases': {
                     'observe': {'status': 'completed', 'message': 'Schema analyzed'},
                     'analyze': {'status': 'completed', 'message': 'PII detected and mapped'},
                     'plan': {'status': 'completed', 'message': 'Masking policy created'},
                     'simulate': {'status': 'completed', 'message': 'Simulation completed'},
-                    'execute': {'status': 'completed', 'message': 'Masking policy applied to CUSTOMERS table'},
+                    'execute': {'status': 'completed' if execution_success else 'error', 'message': 'Database changes applied' if execution_success else f'Execution failed: {execution_error}'},
                     'learn': {'status': 'completed', 'message': 'Execution recorded in audit log'}
                 },
                 'phase_progress': {
@@ -1013,16 +1165,14 @@ def continue_execution(session_id):
                     '2': {'status': 'completed', 'message': 'PII detected and mapped', 'name': 'ANALYZE'},
                     '3': {'status': 'completed', 'message': 'Masking policy created', 'name': 'PLAN'},
                     '4': {'status': 'completed', 'message': 'Simulation completed', 'name': 'SIMULATE'},
-                    '5': {'status': 'completed', 'message': 'Masking policy applied', 'name': 'EXECUTE'},
+                    '5': {'status': 'completed' if execution_success else 'error', 'message': 'Masking policy applied' if execution_success else f'Execution failed: {execution_error}', 'name': 'EXECUTE'},
                     '6': {'status': 'completed', 'message': 'Execution recorded', 'name': 'LEARN'}
                 },
-                'rows_affected': 5000,
-                'message': 'Governance policy successfully executed',
+                'rows_affected': 0,
+                'message': 'Governance policy successfully executed' if execution_success else f'Execution failed: {execution_error}',
                 'execution_details': {
-                    'table': 'CUSTOMERS',
-                    'columns_masked': ['EMAIL', 'PHONE', 'SSN'],
-                    'rows_modified': 5000,
-                    'masking_types': {'EMAIL': 'MASK', 'PHONE': 'MASK', 'SSN': 'HASH'}
+                    'sql_commands': executed_sql_commands,
+                    'execution_error': execution_error
                 }
             }
         
@@ -1033,8 +1183,9 @@ def continue_execution(session_id):
         results['phase_progress'] = phase_progress.get(session_id, {})
         results['continued_execution'] = True
         
-        # IMMEDIATELY add data_preview with sample data to GUARANTEE it exists
-        print(f"\n🔥 FORCING data_preview to be included in response...")
+        # Initialize data_preview with a fallback. The real Snowflake fetch below
+        # will override this when the database connection and roles are available.
+        print(f"\n🔥 Initializing fallback data_preview (will be replaced by real DB data if fetch succeeds)...")
         results['data_preview'] = {
             'table': 'PUBLIC.EMPLOYEE_DATA',
             'columns': ['ID', 'NAME', 'EMAIL', 'SALARY', 'DATE_META'],
@@ -1043,17 +1194,17 @@ def continue_execution(session_id):
                 {'ID': 2, 'NAME': 'Bob Smith', 'EMAIL': 'bob.smith@example.com', 'SALARY': 62000.50, 'DATE_META': 'Tue, 02 Dec 2025'}
             ],
             'after_hr': [
-                {'ID': 1, 'NAME': 'vmsiisss Johnson', 'EMAIL': '***@***.***', 'SALARY': 75000.00, 'DATE_META': 'Mon, 01 Dec 2025'},
+                {'ID': 1, 'NAME': 'Alice Johnson', 'EMAIL': '***@***.***', 'SALARY': 75000.00, 'DATE_META': 'Mon, 01 Dec 2025'},
                 {'ID': 2, 'NAME': 'Bob Smith', 'EMAIL': '***@***.***', 'SALARY': 62000.50, 'DATE_META': 'Tue, 02 Dec 2025'}
             ],
             'after_analyst': [
-                {'ID': 1, 'NAME': 'Alice Johnson', 'EMAIL': '***MASKED***', 'SALARY': 75000.00, 'DATE_META': 'Mon, 01 Dec 2025'},
-                {'ID': 2, 'NAME': 'Bob Smith', 'EMAIL': '***MASKED***', 'SALARY': 62000.50, 'DATE_META': 'Tue, 02 Dec 2025'}
+                {'ID': 1, 'NAME': 'Alice Johnson', 'EMAIL': '***MASKED***', 'SALARY': None, 'DATE_META': 'Mon, 01 Dec 2025'},
+                {'ID': 2, 'NAME': 'Bob Smith', 'EMAIL': '***MASKED***', 'SALARY': None, 'DATE_META': 'Tue, 02 Dec 2025'}
             ],
             'hr_current_role': 'HR_ROLE',
             'analyst_current_role': 'ANALYST_ROLE'
         }
-        print(f"✅ data_preview FORCED into results")
+        print(f"✅ Fallback data_preview initialized")
         
         # Update phase_progress with results from execution
         if session_id in phase_progress:
@@ -1095,40 +1246,59 @@ def continue_execution(session_id):
                     policy_name = "GDPR_COMPLIANCE_POLICY"
                 elif 'financial' in command.lower():
                     policy_name = "FINANCIAL_DATA_POLICY"
+                elif 'salary' in command.lower():
+                    policy_name = "SALARY_MASKING_POLICY"
                 
-                # Determine affected table from results if available, else fall back to parsed command
+                # Determine affected table from executed SQL, command, or results
                 table_name = None
-                if observe_phase and observe_phase.get('target_entities'):
-                    table_name = observe_phase.get('target_entities')[0]
-                else:
-                    if 'orders' in command.lower():
-                        table_name = "ORDERS"
-                    elif 'transactions' in command.lower():
-                        table_name = "TRANSACTIONS"
-                    elif 'employees' in command.lower():
-                        table_name = "EMPLOYEES"
-                    elif 'accounts' in command.lower():
-                        table_name = "ACCOUNTS"
+                sql_commands_for_log = executed_sql_commands or plan_phase.get('sql_commands', [])
+                import re
+                for sql in sql_commands_for_log:
+                    # Match ALTER TABLE with optional quotes around identifiers
+                    match = re.search(r'ALTER\s+TABLE\s+([A-Z0-9_\."]+)', sql, re.IGNORECASE)
+                    if match:
+                        table_name = match.group(1).upper().replace('"', '')
+                        break
+                if not table_name:
+                    if observe_phase and observe_phase.get('target_entities'):
+                        table_name = observe_phase.get('target_entities')[0]
                     else:
-                        table_name = "CUSTOMERS"
+                        if 'orders' in command.lower():
+                            table_name = "ORDERS"
+                        elif 'transactions' in command.lower():
+                            table_name = "TRANSACTIONS"
+                        elif 'employees' in command.lower():
+                            table_name = "EMPLOYEES"
+                        elif 'accounts' in command.lower():
+                            table_name = "ACCOUNTS"
+                        else:
+                            table_name = "CUSTOMERS"
                 if isinstance(table_name, str) and '.' in table_name:
                     table_name = table_name.split('.')[-1]
                 
-                # Get PII columns detected
+                # Get PII columns detected from analyze phase or executed SQL
                 pii_columns = analyze_phase.get('pii_columns', [])
                 if not pii_columns and analyze_phase.get('pii_findings'):
                     pii_columns = [f['column'] for f in analyze_phase['pii_findings']]
+                if not pii_columns:
+                    # Extract columns from ALTER TABLE ... MODIFY COLUMN "COL" SET MASKING POLICY
+                    for sql in sql_commands_for_log:
+                        match = re.search(r'MODIFY\s+COLUMN\s+"([^"]+)"', sql, re.IGNORECASE)
+                        if match and match.group(1).upper() not in pii_columns:
+                            pii_columns.append(match.group(1).upper())
+                if not pii_columns:
+                    pii_columns = _extract_columns_from_command(command)
                 
                 # Get commands executed count
-                commands_executed = execute_phase.get('commands_executed', 0)
-                if isinstance(commands_executed, list):
-                    commands_executed = len(commands_executed)
+                commands_executed = len(sql_commands_for_log) if sql_commands_for_log else (
+                    len(execute_phase.get('commands_executed', [])) if isinstance(execute_phase.get('commands_executed'), list) else execute_phase.get('commands_executed', 0)
+                )
                 
                 # Log policy change to Atlan metadata - APPLY for actual execution
                 metadata_store.add_policy_change(
                     policy_name=policy_name,
                     change_type="APPLY",
-                    affected_assets=[f"PUBLIC.{table_name}.{col}" for col in pii_columns[:3]] if pii_columns else [f"PUBLIC.{table_name}.SSN", f"PUBLIC.{table_name}.EMAIL"],
+                    affected_assets=[f"{table_name}.{col}" for col in pii_columns[:3]] if pii_columns else [f"{table_name}.SSN", f"{table_name}.EMAIL"],
                     change_details={
                         "masking_type": "PII_MASK_EXECUTED",
                         "columns": pii_columns[:5] if pii_columns else ["SSN", "EMAIL", "PHONE"],
@@ -1163,7 +1333,7 @@ def continue_execution(session_id):
                     metadata={
                         "command": command,
                         "pii_detected": len(pii_columns) if pii_columns else 0,
-                        "sql_commands_executed": execute_phase.get('commands_executed', 0)
+                        "sql_commands_executed": commands_executed
                     }
                 )
                 

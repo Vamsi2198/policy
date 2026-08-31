@@ -4,10 +4,19 @@ Flask Web Application for Atlan AI Control Plane
 Runs on localhost:5000
 """
 
-from flask import Flask, request, jsonify, render_template_string
-from flask_cors import CORS
 import sys
 import os
+
+# Force UTF-8 stdout/stderr on Windows so emoji prints in dependencies don't crash the server.
+if sys.platform == 'win32':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except Exception:
+        os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
+
+from flask import Flask, request, jsonify, render_template_string
+from flask_cors import CORS
 import json
 from datetime import datetime
 

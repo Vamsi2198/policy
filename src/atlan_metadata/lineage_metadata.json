@@ -3,8 +3,8 @@
     "created_at": "2025-11-22T12:54:26.948305",
     "version": "1.0",
     "description": "Data lineage metadata stored in Atlan",
-    "last_updated": "2025-12-10T17:14:23.505102",
-    "total_entries": 173
+    "last_updated": "2026-08-31T13:44:32.494181",
+    "total_entries": 176
   },
   "lineage_entries": [
     {
@@ -2080,6 +2080,42 @@
       "lineage_type": "COLUMN_LEVEL",
       "process_name": "MASK_PII_CUSTOMERS",
       "atlan_guid": "atlan_lineage_5c0a44e8",
+      "metadata": {},
+      "atlan_synced": true
+    },
+    {
+      "lineage_id": "f526cccd-9c2a-43d1-a241-24125cea6fb0",
+      "timestamp": "2026-08-31T13:20:06.574295",
+      "source_asset": "RAW.",
+      "target_asset": "STAGING._MASKED",
+      "transformation": "Applied masking policies: SALARY",
+      "lineage_type": "COLUMN_LEVEL",
+      "process_name": "MASK_PII_",
+      "atlan_guid": "atlan_lineage_e77c91fc",
+      "metadata": {},
+      "atlan_synced": true
+    },
+    {
+      "lineage_id": "8af5f50d-bfd7-4a6b-ad11-ab848501136e",
+      "timestamp": "2026-08-31T13:33:26.038589",
+      "source_asset": "RAW.",
+      "target_asset": "STAGING._MASKED",
+      "transformation": "Applied masking policies: SALARY",
+      "lineage_type": "COLUMN_LEVEL",
+      "process_name": "MASK_PII_",
+      "atlan_guid": "atlan_lineage_66ea8ec0",
+      "metadata": {},
+      "atlan_synced": true
+    },
+    {
+      "lineage_id": "d4d651d9-dfc9-439c-989a-2ef01d8547bb",
+      "timestamp": "2026-08-31T13:44:32.469906",
+      "source_asset": "RAW.EMPLOYEES",
+      "target_asset": "STAGING.EMPLOYEES_MASKED",
+      "transformation": "Applied masking policies: SALARY",
+      "lineage_type": "COLUMN_LEVEL",
+      "process_name": "MASK_PII_EMPLOYEES",
+      "atlan_guid": "atlan_lineage_a070fc4a",
       "metadata": {},
       "atlan_synced": true
     }

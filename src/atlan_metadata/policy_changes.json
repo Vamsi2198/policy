@@ -3,8 +3,8 @@
     "created_at": "2025-11-22T12:54:26.946651",
     "version": "1.0",
     "description": "Policy changes metadata stored in Atlan",
-    "last_updated": "2026-04-10T16:49:36.290374",
-    "total_changes": 353
+    "last_updated": "2026-08-31T13:44:31.941490",
+    "total_changes": 356
   },
   "changes": [
     {
@@ -8833,6 +8833,72 @@
         "sql_executed": 0
       },
       "atlan_guid": "atlan_policy_b81e92b5",
+      "user": "system",
+      "status": "COMPLETED",
+      "atlan_synced": true
+    },
+    {
+      "change_id": "057881f0-b4ad-47bb-b27f-8946cd7d0217",
+      "timestamp": "2026-08-31T13:20:06.481014",
+      "policy_name": "SALARY_MASKING_POLICY",
+      "change_type": "APPLY",
+      "affected_assets": [
+        "PUBLIC..SALARY"
+      ],
+      "change_details": {
+        "masking_type": "PII_MASK_EXECUTED",
+        "columns": [
+          "SALARY"
+        ],
+        "table": "",
+        "command": "mask Salary in employees table for analyst role",
+        "sql_executed": 7
+      },
+      "atlan_guid": "atlan_policy_65715c15",
+      "user": "system",
+      "status": "COMPLETED",
+      "atlan_synced": true
+    },
+    {
+      "change_id": "1ae0356d-b514-45eb-a9ae-18bbf8309e50",
+      "timestamp": "2026-08-31T13:33:23.191383",
+      "policy_name": "SALARY_MASKING_POLICY",
+      "change_type": "APPLY",
+      "affected_assets": [
+        "PUBLIC..SALARY"
+      ],
+      "change_details": {
+        "masking_type": "PII_MASK_EXECUTED",
+        "columns": [
+          "SALARY"
+        ],
+        "table": "",
+        "command": "mask Salary in employees table for analyst role",
+        "sql_executed": 7
+      },
+      "atlan_guid": "atlan_policy_baab7e09",
+      "user": "system",
+      "status": "COMPLETED",
+      "atlan_synced": true
+    },
+    {
+      "change_id": "05ae7d89-c12c-4ded-885c-95ef531f9b99",
+      "timestamp": "2026-08-31T13:44:31.883776",
+      "policy_name": "SALARY_MASKING_POLICY",
+      "change_type": "APPLY",
+      "affected_assets": [
+        "EMPLOYEES.SALARY"
+      ],
+      "change_details": {
+        "masking_type": "PII_MASK_EXECUTED",
+        "columns": [
+          "SALARY"
+        ],
+        "table": "EMPLOYEES",
+        "command": "mask Salary in employees table for analyst role",
+        "sql_executed": 7
+      },
+      "atlan_guid": "atlan_policy_86c1689c",
       "user": "system",
       "status": "COMPLETED",
       "atlan_synced": true

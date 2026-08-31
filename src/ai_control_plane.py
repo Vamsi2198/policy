@@ -1326,8 +1326,9 @@ class AIControlPlane:
                 actual_columns = self._get_table_columns(schema, table_base)
                 
                 if actual_columns:
-                    # Extract column names
+                    # Extract column names and types
                     all_col_names = [col['name'] for col in actual_columns]
+                    column_types = {col['name'].upper(): col['type'] for col in actual_columns}
                     self.logger.info(f"   ✅ Actual columns from {schema}.{table_base}: {all_col_names}")
                     
                     # Filter by user request (if provided)
@@ -1354,6 +1355,21 @@ class AIControlPlane:
                     policy_name = f"{table_for_policy}_{col}_mask_policy".replace('.', '_')
                     unique_policy_name = f"{policy_name}_{timestamp}"
                     
+                    # Determine Snowflake data type for the masking policy signature
+                    raw_type = column_types.get(col.upper(), 'STRING')
+                    type_upper = raw_type.upper()
+                    if any(t in type_upper for t in ['NUMBER', 'INT', 'FLOAT', 'DECIMAL', 'DOUBLE', 'NUMERIC']):
+                        sf_type = 'NUMBER'
+                        masked_value = 'NULL'
+                    elif any(t in type_upper for t in ['DATE', 'TIME', 'TIMESTAMP']):
+                        sf_type = 'DATE'
+                        masked_value = 'NULL'
+                    else:
+                        sf_type = 'STRING'
+                        masked_value = "'***MASKED***'"
+                    
+                    self.logger.info(f"   🔧 Column {col} type: {raw_type} -> masking policy signature: {sf_type}")
+                    
                     # Build CASE statement with role directive
                     visible_roles = role_directive.get('visible_for_roles', ['ACCOUNTADMIN', 'SYSADMIN', 'SECURITYADMIN'])
                     masked_roles = role_directive.get('masked_for_roles', ['PUBLIC'])
@@ -1365,25 +1381,25 @@ class AIControlPlane:
                             # Explicit masked roles have priority; listed visible roles also see unmasked data
                             case_statement = (
                                 f"CASE WHEN CURRENT_ROLE() IN ({visible_list}) THEN val "
-                                f"WHEN CURRENT_ROLE() IN ({masked_list}) THEN '***MASKED***' "
+                                f"WHEN CURRENT_ROLE() IN ({masked_list}) THEN {masked_value} "
                                 f"ELSE val END"
                             )
                         else:
-                            case_statement = f"CASE WHEN CURRENT_ROLE() IN ({masked_list}) THEN '***MASKED***' ELSE val END"
+                            case_statement = f"CASE WHEN CURRENT_ROLE() IN ({masked_list}) THEN {masked_value} ELSE val END"
                     elif visible_roles:
                         visible_list = ', '.join([f"'{role}'" for role in visible_roles])
-                        case_statement = f"CASE WHEN CURRENT_ROLE() IN ({visible_list}) THEN val ELSE '***MASKED***' END"
+                        case_statement = f"CASE WHEN CURRENT_ROLE() IN ({visible_list}) THEN val ELSE {masked_value} END"
                     else:
-                        case_statement = "CASE WHEN 1=1 THEN '***MASKED***' ELSE val END"  # Fallback safety
+                        case_statement = f"CASE WHEN 1=1 THEN {masked_value} ELSE val END"  # Fallback safety
                     
                     # Always detach existing policy before creating/applying a new one
                     sql_commands.append(f'ALTER TABLE {full_table_name} ALTER COLUMN "{col}" UNSET MASKING POLICY;')
                     sql_commands.append(f'DROP MASKING POLICY IF EXISTS {unique_policy_name};')
 
-                    # First CREATE the masking policy with role-based CASE
+                    # First CREATE the masking policy with role-based CASE and correct type signature
                     create_policy = (
                         f"CREATE MASKING POLICY IF NOT EXISTS {unique_policy_name} "
-                        f"AS (val STRING) RETURNS STRING -> {case_statement};"
+                        f"AS (val {sf_type}) RETURNS {sf_type} -> {case_statement};"
                     )
                     sql_commands.append(create_policy)
                     
@@ -2080,6 +2096,36 @@ class AIControlPlane:
             self.logger.warning(f"Could not fetch columns from {schema}.{table_name}: {e}")
         return []
     
+    def _get_column_type_for_masking(self, table: str, column: str) -> Tuple[str, str, bool]:
+        """Determine Snowflake type signature and masked value for a column.
+
+        Returns:
+            Tuple of (sf_type, masked_value, is_string)
+            sf_type: 'STRING', 'NUMBER', or 'DATE'
+            masked_value: SQL literal/expression for masked output
+            is_string: True if the column is a string-like type
+        """
+        try:
+            if '.' in table:
+                schema, table_name = table.split('.', 1)
+            else:
+                schema = self.engine.config.get('schema') or self._get_current_schema() or 'PUBLIC'
+                table_name = table
+            schema = schema.upper() if schema else 'PUBLIC'
+            table_name = table_name.upper()
+            columns = self._get_table_columns(schema, table_name)
+            for col in columns:
+                if col['name'].upper() == column.upper():
+                    raw_type = col['type'].upper()
+                    if any(t in raw_type for t in ['NUMBER', 'INT', 'FLOAT', 'DECIMAL', 'DOUBLE', 'NUMERIC']):
+                        return 'NUMBER', 'NULL', False
+                    if any(t in raw_type for t in ['DATE', 'TIME', 'TIMESTAMP']):
+                        return 'DATE', 'NULL', False
+                    return 'STRING', "'***MASKED***'", True
+        except Exception as e:
+            self.logger.warning(f"Could not determine type for {table}.{column}: {e}")
+        return 'STRING', "'***MASKED***'", True
+    
     def _filter_columns_by_request(self, all_columns: List[str], user_request: str) -> List[str]:
         """Match user's request to actual table columns dynamically"""
         user_request_lower = user_request.lower()
@@ -2629,8 +2675,15 @@ class AIControlPlane:
             full_table_name = f'"{table}"'
             backup_table_name = f'"{table}_backup"'
         
-        # Choose masking function based on PII type
-        if 'EMAIL_ADDRESS' in pii_types:
+        # Determine actual Snowflake data type for the column so the masking policy signature matches
+        sf_type, masked_value, is_string = self._get_column_type_for_masking(table, column)
+        self.logger.info(f"   🔧 Masking policy for {table}.{column}: type={sf_type}, masked_value={masked_value}")
+        
+        # Choose masking function based on PII type and column type
+        if not is_string:
+            # Non-string columns cannot use CONCAT/LEFT/RIGHT; mask with NULL
+            mask_function = masked_value
+        elif 'EMAIL_ADDRESS' in pii_types:
             mask_function = "CONCAT(LEFT(val, 3), '***@***.com')"
         elif 'PHONE_NUMBER' in pii_types:
             mask_function = "CONCAT('***-***-', RIGHT(val, 4))"
@@ -2694,7 +2747,7 @@ class AIControlPlane:
                 else:
                     case_statement = f"CASE WHEN DATEDIFF(day, date_col, CURRENT_DATE()) > {date_filter_days} THEN {mask_function} ELSE val END"
                 self.logger.info(f"   ✅ DATE-BASED Masking: Rows older than {date_filter_days} days will be masked")
-                policy_signature = f"(val STRING, date_col DATE) RETURNS STRING"
+                policy_signature = f"(val {sf_type}, date_col DATE) RETURNS {sf_type}"
                 using_clause = f" USING ({column}, {date_column})"
             else:
                 # Original role-only logic
@@ -2719,7 +2772,7 @@ class AIControlPlane:
                 else:
                     case_statement = f"CASE WHEN 1=1 THEN {mask_function} ELSE val END"
                     self.logger.info(f"   ⚠️  DYNAMIC Masking fallback: no roles provided, masking all roles")
-                policy_signature = f"(val STRING) RETURNS STRING"
+                policy_signature = f"(val {sf_type}) RETURNS {sf_type}"
                 using_clause = ""
 
             self.logger.info(f"   ✓ Generated masking policy - will auto-include future admin roles")
@@ -2740,7 +2793,7 @@ class AIControlPlane:
                 self.logger.info(f"   ✅ DEFAULT Date-Based Masking: Rows older than {date_filter_days} days masked for non-admin")
             else:
                 case_statement = f"CASE WHEN CURRENT_ROLE() IN ({roles_list}) THEN val ELSE {mask_function} END"
-                policy_signature = f"(val STRING) RETURNS STRING"
+                policy_signature = f"(val {sf_type}) RETURNS {sf_type}"
                 using_clause = ""
             
             self.logger.info(f"   ✅ DEFAULT Dynamic Masking: {len(actual_admin_roles)} admin roles see UNMASKED data")

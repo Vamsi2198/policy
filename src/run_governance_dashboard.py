@@ -18,6 +18,14 @@ import subprocess
 import webbrowser
 from pathlib import Path
 
+# Force UTF-8 stdout/stderr on Windows so emoji prints don't crash the launcher.
+if sys.platform == 'win32':
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except Exception:
+        os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
+
 # Get script directory
 SCRIPT_DIR = Path(__file__).parent.absolute()
 
